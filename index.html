@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Foviz - Home of Apt Skola | Scientific School Board Selection</title>
+    <meta name="description" content="Stop guessing, start knowing. Foviz provides scientific 5D career analysis and IB vs CBSE board selection for students and professionals.">
+    <meta name="keywords" content="career counseling India, career guidance, board selection CBSE vs IB, psychometric test for students, Foviz career GPS">
+
+    <meta property="og:title" content="Foviz | Data-Driven Career Guidance">
+    <meta property="og:description" content="Map your child's DNA to the right career path with our Elite 5D Analysis.">
+    <meta property="og:url" content="https://foviz.in">
+    <meta property="og:type" content="website">
+
+    <link rel="canonical" href="https://foviz.in" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "Foviz",
+      "url": "https://foviz.in",
+      "logo": "https://foviz.in/logo.png",
+      "description": "India's most trusted career GPS providing school board selection and 5D psychometric career roadmaps.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "IN"
+      },
+      "service": [
+        {"@type": "Service", "name": "Apt Skola Board Selection"},
+        {"@type": "Service", "name": "5D Career Analysis"}
+      ]
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        .animate-spin-slow { animation: spin 8s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .transition-all { transition: all 0.3s ease; }
+        .authority-shadow { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08); }
+        .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+    </style>
+</head>
+<body>
+
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Initialize Supabase Client
+        // Replace with your actual Supabase Project URL and Anon Key
+        const supabaseUrl = 'YOUR_SUPABASE_PROJECT_URL';
+        const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+        const supabase = window.supabase && supabaseUrl !== 'YOUR_SUPABASE_PROJECT_URL'
+            ? window.supabase.createClient(supabaseUrl, supabaseAnonKey)
+            : null;
+
+        if (!supabase) {
+            console.warn("Supabase is not configured. Please replace 'YOUR_SUPABASE_PROJECT_URL' and 'YOUR_SUPABASE_ANON_KEY' with your actual Supabase credentials.");
+        }
+
+        const Icon = ({ name, className = "w-6 h-6", ...props }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} className={className} aria-hidden="true" {...props}></i>;
+        };
+
+        const App = () => {
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const [showQuizModal, setShowQuizModal] = useState(false);
+            const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+            const [showPartnerModal, setShowPartnerModal] = useState(false);
+            const [showTermsModal, setShowTermsModal] = useState(false);
+            const [showOrderIdModal, setShowOrderIdModal] = useState(false); 
+            const [showCareerModal, setShowCareerModal] = useState(false);
+            const [selectedCareerRole, setSelectedCareerRole] = useState("");
+            const [testimonialTab, setTestimonialTab] = useState('parents');
+            const [quizStep, setQuizStep] = useState(1);
+            const [answers, setAnswers] = useState([]);
+
+            const aptSkolaUrl = "https://aptskola.com";
+            const link499 = "https://nxtcue.edumilestones.com/login/suitability";
+            const linkPremium = "https://careertest.edumilestones.com/student-dashboard/suitability-registration/login/MzA1Nw==/as11-as12-as13-as14-vas341-hms341-as204-as16";
+
+            useEffect(() => {
+                if (showQuizModal) {
+                    document.title = "Discover Your Path | Foviz Career Quiz";
+                } else {
+                    document.title = "Foviz | Home of Apt Skola | Scientific School Board Selection";
+                }
+            }, [showQuizModal]);
+
+            useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const ref = params.get('ref');
+                if (ref) {
+                    localStorage.setItem('foviz_ref', ref);
+                }
+            }, []);
+
+            const handlePaymentRedirect = (baseUrl) => {
+                const refCode = localStorage.getItem('foviz_ref');
+                const url = new URL(baseUrl);
+                if (refCode) {
+                    url.searchParams.append('ref', refCode);
+                }
+                window.open(url.toString(), '_blank');
+            };
+
+             const handleSubmit = async (e, formName, callback) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+
+                if (!supabase) {
+                    alert("Submission failed: Supabase is not configured. Please add your Supabase Project URL and Anon Key in the code.");
+                    return;
+                }
+
+                try {
+                    if (formName === "career-application") {
+                        const file = formData.get("resume");
+                        let resumeUrl = "";
+
+                        if (file && file.size > 0) {
+                            // Upload file to the 'resumes' storage bucket
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+                            
+                            const { data: uploadData, error: uploadError } = await supabase.storage
+                                .from("resumes")
+                                .upload(fileName, file);
+
+                            if (uploadError) throw uploadError;
+
+                            // Retrieve public URL of the uploaded file
+                            const { data: { publicUrl } } = supabase.storage
+                                .from("resumes")
+                                .getPublicUrl(fileName);
+                            
+                            resumeUrl = publicUrl;
+                        }
+
+                        // Save details to the career_applications database table
+                        const { error: insertError } = await supabase
+                            .from("career_applications")
+                            .insert([{
+                                name: formData.get("name"),
+                                phone: formData.get("phone"),
+                                role: formData.get("role"),
+                                linkedin: formData.get("linkedin") || null,
+                                resume_url: resumeUrl,
+                                why_fit: formData.get("whyFit")
+                            }]);
+
+                        if (insertError) throw insertError;
+                    } else if (formName === "discovery-call") {
+                        const { error } = await supabase
+                            .from("discovery_calls")
+                            .insert([{
+                                name: formData.get("name"),
+                                phone: formData.get("phone"),
+                                school: formData.get("school"),
+                                time: formData.get("time")
+                            }]);
+                        if (error) throw error;
+                    } else if (formName === "partner-registration") {
+                        const { error } = await supabase
+                            .from("partner_registrations")
+                            .insert([{
+                                name: formData.get("name"),
+                                phone: formData.get("phone"),
+                                organization: formData.get("organization"),
+                                time: formData.get("time")
+                            }]);
+                        if (error) throw error;
+                    } else if (formName === "elite-redirection") {
+                        const { error } = await supabase
+                            .from("elite_redirections")
+                            .insert([{
+                                order_id: formData.get("orderId"),
+                                source: formData.get("source") || "Direct"
+                            }]);
+                        if (error) throw error;
+                    }
+
+                    // On successful insert, trigger the callback
+                    callback();
+                } catch (error) {
+                    console.error("Supabase Submission Error:", error);
+                    alert("Something went wrong during submission: " + (error.message || error));
+                }
+            };
+
+            const startQuiz = () => {
+                setQuizStep(1);
+                setAnswers([]);
+                setShowQuizModal(true);
+                setIsMenuOpen(false);
+            };
+
+            const testimonials = {
+                parents: [
+                    { name: "Nagaraju Veesam", title: "Gained clarity", quote: "I wanted to thank Foviz for the guidance and support provided during the career counseling session for my daughter. Their approach made a significant positive impact.", rating: 5 },
+                    { name: "Swagtika Parida", title: "Hidden strengths", quote: "An outstanding experience. This session provided a clear vision of career options best suited for our child’s mental ability. A true blessing.", rating: 5 },
+                    { name: "Praveen Bussa", title: "Highly impressed", quote: "I liked the way they guided our child and made him understand the options ahead. I am really impressed with the approach.", rating: 5 }
+                ],
+                professionals: [
+                    { name: "Ahi Juices", title: "Aligned Interests", quote: "I recently underwent career counseling to evaluate whether I am in the right profession. Results perfectly aligned with my interests.", rating: 5 },
+                    { name: "Deepika Sumana Tokala", title: "Confidential", quote: "The counselor was very professional and created a safe space to express myself freely. Confidentiality was maintained throughout.", rating: 5 }
+                ],
+                graduates: [
+                    { name: "Yashwanth Babu", title: "Expert insights", quote: "Harish sir provided excellent career counseling with personalized guidance and expert insights. Helped me gain clarity and confidence.", rating: 5 },
+                    { name: "Yugendhar Yugendhar", title: "Truly appreciated", quote: "I am so happy I approached Foviz. I truly appreciate the way they took the time to understand me and my needs.", rating: 5 },
+                    { name: "Sayeeda Khatoon", title: "New opportunities", quote: "I explored unknown facts about myself through the career counseling exam. Learned about many new career opportunities possible after graduation.", rating: 5 },
+                    { name: "Md Rumana", title: "Mind-blowing", quote: "To be honest, this session was mind-blowing. It was incredibly helpful for me, and I suggest it to everyone looking for a way forward.", rating: 5 }
+                ]
+            };
+
+            const quizQuestions = [
+                { id: 1, question: "What is your child’s current grade level?", options: [{ label: "Below Grade 5 to Grade 8", weight: 'board' }, { label: "Grade 8 to Grade 10", weight: 'board' }, { label: "Grade 10 to Undergraduate", weight: 'career' }] },
+                { id: 2, question: "What is your #1 concern right now?", options: [{ label: "Choosing the right school board / curriculum.", weight: 'board' }, { label: "Choosing the right career path or higher education stream.", weight: 'career' }] },
+                { id: 3, question: "How does your child feel about school right now?", options: [{ label: "Struggling in the wrong curriculum / school board.", weight: 'board' }, { label: "Uncertain about what stream or career to target.", weight: 'career' }] },
+                { id: 4, question: "If you had one 'Superpower' for your child's education?", options: [{ label: "Pick the perfect board foundation (CBSE, IB, IGCSE, etc.).", weight: 'board' }, { label: "Get a clear 10-year career roadmap.", weight: 'career' }] },
+                { id: 5, question: "Is there conflict at home regarding the future path?", options: [{ label: "Very little, we just want to select the right school board.", weight: 'board' }, { label: "Yes, we have disagreements about stream/career choices.", weight: 'career' }] }
+            ];
+
+            const handleAnswer = (weight) => {
+                const updatedAnswers = [...answers, weight];
+                setAnswers(updatedAnswers);
+                if (quizStep === 5) setQuizStep(7);
+                else setQuizStep(prev => prev + 1);
+            };
+
+            const getResult = () => {
+                const counts = answers.reduce((acc, curr) => { acc[curr] = (acc[curr] || 0) + 1; return acc; }, {});
+                const majority = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, 'career');
+                
+                if (majority === 'board') return { 
+                    title: "Architect (Apt Skola)", 
+                    description: "Optimized for students choosing between CBSE, IB, and IGCSE boards.", 
+                    hook: "Build the foundation.", 
+                    link: aptSkolaUrl, 
+                    isExternal: true, 
+                    cta: "Go to Apt Skola" 
+                };
+                return { 
+                    title: "Strategist (5D Analysis)", 
+                    description: "Strategic career mapping for senior students and professionals using 5-dimensional psychometric analysis.",
+                    hook: "The Final Roadmap.", 
+                    link: "#pricing", 
+                    isExternal: false, 
+                    cta: "View Packages" 
+                };
+            };
+
+            const currentResult = quizStep === 7 ? getResult() : null;
+
+            const navLinks = [
+                { id: 'ecosystem', label: 'Ecosystem', href: '#ecosystem' },
+                { id: 'about', label: 'About Us', href: '#about' },
+                { id: 'sample-report', label: 'Sample Report', href: '#sample-report' },
+                { id: 'pricing', label: 'Pricing', href: '#pricing' },
+                { id: 'careers', label: 'Careers', href: '#careers' },
+                { id: 'partner', label: 'Educator Partner Program', href: '#educatorPartner' }
+            ];
+
+            return (
+                <div className="min-h-screen bg-white">
+                    {/* Discovery Call Modal */}
+                    {showDiscoveryModal && (
+                        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-lg rounded-[32px] p-8 lg:p-10 relative shadow-2xl">
+                                <button onClick={() => setShowDiscoveryModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+                                <div className="text-center mb-8">
+                                    <h3 className="text-2xl font-black text-indigo-950">Book Your Discovery Call</h3>
+                                    <p className="text-slate-500 text-sm mt-2">Fill in your details below and our team will get in touch with you shortly.</p>
+                                </div>
+                                <form 
+                                    name="discovery-call" 
+                                    method="POST"
+                                    data-netlify="true"
+                                    className="space-y-4" 
+                                    onSubmit={(e) => handleSubmit(e, "discovery-call", () => {
+                                        alert("Success! Our team will contact you shortly for your Discovery Call.");
+                                        setShowDiscoveryModal(false);
+                                    })}
+                                >
+                                    <input type="hidden" name="form-name" value="discovery-call" />
+                                    <input type="hidden" name="bot-field" />
+                                    
+                                    <input type="text" name="name" placeholder="Full Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required />
+                                    <input type="tel" name="phone" placeholder="WhatsApp Number" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required />
+                                    <input type="text" name="school" placeholder="School Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required />
+                                    <select name="time" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required>
+                                        <option value="">Ideal Time for Conversation</option>
+                                        <option>Morning (9 AM - 12 PM)</option>
+                                        <option>Afternoon (12 PM - 4 PM)</option>
+                                        <option>Evening (4 PM - 8 PM)</option>
+                                    </select>
+                                    <button type="submit" className="w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4">Schedule Call</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Order ID Modal (Elite Redirection) */}
+                    {showOrderIdModal && (
+                        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-md rounded-[32px] p-8 relative shadow-2xl">
+                                <button onClick={() => setShowOrderIdModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+                                <div className="text-center mb-8">
+                                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Icon name="ticket" className="text-orange-500 w-8 h-8" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-indigo-950">Verify Your Reward</h3>
+                                    <p className="text-slate-500 text-sm mt-2">Please enter your Apt Skola Order ID to claim the 50% discount.</p>
+                                </div>
+                                <form 
+                                    name="elite-redirection" 
+                                    method="POST"
+                                    data-netlify="true"
+                                    className="space-y-4" 
+                                    onSubmit={(e) => {
+                                        handleSubmit(e, "elite-redirection", () => {
+                                            handlePaymentRedirect(linkPremium);
+                                            setShowOrderIdModal(false);
+                                        });
+                                    }}
+                                >
+                                    <input type="hidden" name="form-name" value="elite-redirection" />
+                                    <input type="hidden" name="source" value="Elite Experience Reward Section" />
+                                    
+                                    <input 
+                                        type="text" 
+                                        name="orderId" 
+                                        placeholder="Enter Order ID (e.g., AS-12345)" 
+                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold" 
+                                        required 
+                                    />
+                                    <button type="submit" className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-lg shadow-xl hover:bg-orange-600 transition-all">
+                                        Verify & Proceed
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Partner Registration Modal */}
+                    {showPartnerModal && (
+                        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-lg rounded-[32px] p-8 lg:p-10 relative shadow-2xl">
+                                <button onClick={() => setShowPartnerModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+                                <div className="text-center mb-8">
+                                    <h3 className="text-2xl font-black text-indigo-950">Partner Registration</h3>
+                                    <p className="text-slate-500 text-sm mt-2">Join our network of educators. Please provide your professional details.</p>
+                                </div>
+                                <form 
+                                    name="partner-registration" 
+                                    method="POST"
+                                    data-netlify="true"
+                                    className="space-y-4" 
+                                    onSubmit={(e) => handleSubmit(e, "partner-registration", () => {
+                                        alert("Registration complete! A partnership manager will reach out to you within 24 hours.");
+                                        setShowPartnerModal(false);
+                                    })}
+                                >
+                                    <input type="hidden" name="form-name" value="partner-registration" />
+                                    <input type="hidden" name="bot-field" />
+
+                                    <input type="text" name="name" placeholder="Full Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required />
+                                    <input type="tel" name="phone" placeholder="WhatsApp Number" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required />
+                                    <input type="text" name="organization" placeholder="Organization / School Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required />
+                                    <select name="time" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" required>
+                                        <option value="">Best Time to Connect</option>
+                                        <option>During School Hours</option>
+                                        <option>Post-School Hours</option>
+                                        <option>Weekends</option>
+                                    </select>
+                                    <button type="submit" className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4">Submit Registration</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Partner Terms Modal */}
+                    {showTermsModal && (
+                        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-lg rounded-[32px] p-8 lg:p-10 relative shadow-2xl">
+                                <button onClick={() => setShowTermsModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+                                <div className="text-center mb-8">
+                                    <h3 className="text-2xl font-black text-indigo-950">Partner Payout Policy</h3>
+                                    <p className="text-slate-500 text-sm mt-4 leading-relaxed">
+                                        All referral payouts are processed within <strong className="font-bold text-indigo-950">7 business days</strong> of a verified customer payment. Our system tracks referrals via unique partner IDs to ensure transparency and prompt remuneration for our educator network.
+                                    </p>
+                                </div>
+                                <button onClick={() => setShowTermsModal(false)} className="w-full bg-indigo-950 text-white py-4 rounded-xl font-black text-lg shadow-xl">I Understand</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Career Application Modal */}
+                    {showCareerModal && (
+                        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-lg rounded-[32px] p-8 lg:p-10 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+                                <button onClick={() => setShowCareerModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+                                <div className="text-center mb-8">
+                                    <h3 className="text-2xl font-black text-indigo-950">Join Our Team</h3>
+                                    <p className="text-slate-500 text-sm mt-2">Scale career clarity across schools in India.</p>
+                                </div>
+                                <form 
+                                    name="career-application" 
+                                    method="POST"
+                                    data-netlify="true"
+                                    encType="multipart/form-data"
+                                    className="space-y-4" 
+                                    onSubmit={(e) => handleSubmit(e, "career-application", () => {
+                                        alert("Application submitted! Our recruitment team will review your profile and reach out within 3 business days.");
+                                        setShowCareerModal(false);
+                                    })}
+                                >
+                                    <input type="hidden" name="form-name" value="career-application" />
+                                    <input type="hidden" name="bot-field" />
+                                    
+                                    <input type="text" name="name" placeholder="Full Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required />
+                                    <input type="tel" name="phone" placeholder="WhatsApp Number" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required />
+                                    
+                                    <select 
+                                        name="role" 
+                                        value={selectedCareerRole}
+                                        onChange={(e) => setSelectedCareerRole(e.target.value)}
+                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" 
+                                        required
+                                    >
+                                        <option value="">Select Role Applied For</option>
+                                        <option value="BD Intern">Business Development Intern</option>
+                                        <option value="Management Trainee">Management Trainee - Sales & B2B</option>
+                                    </select>
+                                    
+                                    <input type="text" name="linkedin" placeholder="LinkedIn Profile / Portfolio URL" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" />
+                                    
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1 text-left">Attach Resume (PDF / Word)</label>
+                                        <input type="file" name="resume" accept=".pdf,.doc,.docx" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium text-slate-500 text-left" required />
+                                    </div>
+                                    
+                                    <textarea name="whyFit" placeholder="Why are you a good fit for this role?" rows="4" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required></textarea>
+                                    
+                                    <button type="submit" className="w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4 hover:bg-indigo-900 transition-all">Submit Application</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Quiz Modal */}
+                    {showQuizModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-2xl rounded-[32px] p-8 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+                                <button onClick={() => setShowQuizModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+                                {quizStep <= 5 && (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${(quizStep / 5) * 100}%` }}></div>
+                                            </div>
+                                            <span className="text-[10px] font-black text-slate-400">STEP {quizStep}/5</span>
+                                        </div>
+                                        <h3 className="text-2xl font-black text-indigo-950 leading-tight">{quizQuestions[quizStep-1].question}</h3>
+                                        <div className="grid gap-3">
+                                            {quizQuestions[quizStep-1].options.map((opt, i) => {
+                                                const letter = String.fromCharCode(65 + i); // A, B, C...
+                                                return (
+                                                    <button key={i} onClick={() => handleAnswer(opt.weight)} className="text-left p-6 rounded-2xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 font-bold transition-all group">
+                                                        <span className="group-hover:text-indigo-950 text-slate-600">{letter}) {opt.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                                {quizStep === 7 && currentResult && (
+                                    <div className="text-center space-y-6 py-4 animate-in zoom-in duration-500">
+                                        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2 text-green-600">
+                                            <Icon name="award" className="w-12 h-12" />
+                                        </div>
+                                        <span className="text-orange-500 font-black uppercase text-[10px] tracking-widest">Recommended Path</span>
+                                        <h3 className="text-3xl font-black text-indigo-950 leading-tight">{currentResult.title}</h3>
+                                        <p className="text-sm text-slate-400 font-bold -mt-2">{currentResult.description}</p>
+                                        <p className="text-lg text-slate-600 italic">"{currentResult.hook}"</p>
+                                        <div className="flex flex-col gap-3">
+                                            <button onClick={() => { if(currentResult.isExternal) handlePaymentRedirect(currentResult.link); else document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'}); setShowQuizModal(false); }} className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-orange-500/20">{currentResult.cta}</button>
+                                            <button onClick={() => {setShowQuizModal(false); setShowDiscoveryModal(true);}} className="w-full py-4 border-2 border-slate-100 rounded-2xl font-bold text-slate-600 hover:border-indigo-600 transition-all flex items-center justify-center gap-2">
+                                                <Icon name="calendar-days" className="w-5 h-5 text-indigo-500" />
+                                                Book 1-on-1 Session
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigation */}
+                    <nav className="fixed w-full z-50 bg-white/95 border-b border-slate-100 h-20 flex items-center">
+                        <div className="max-w-7xl mx-auto px-6 w-full flex justify-between items-center">
+                            {/* Task 1: Re-aligned Stacked Logo */}
+                            <div 
+                                className="flex flex-col cursor-pointer group" 
+                                onClick={() => window.scrollTo({top:0, behavior:'smooth'})}
+                            >
+                                <span className="text-3xl font-[900] text-indigo-950 tracking-tighter leading-none">
+                                    FOVIZ<span className="text-orange-500">.</span>
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-orange-500 mt-1">
+                                    Home of Apt Skola
+                                </span>
+                            </div>
+                            
+                            <div className="hidden lg:flex space-x-10 items-center">
+                                {navLinks.map(link => (
+                                    <a key={link.id} href={link.href} className="font-bold text-slate-500 hover:text-indigo-950 uppercase text-[10px] tracking-widest transition-colors">{link.label}</a>
+                                ))}
+                                <button onClick={startQuiz} className="bg-indigo-950 text-white px-7 py-3 rounded-full font-bold text-sm hover:shadow-xl hover:shadow-indigo-950/20 transition-all uppercase tracking-widest text-[10px]">Book a Discovery call</button>
+                            </div>
+
+                            <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                                <Icon name={isMenuOpen ? "x" : "menu"} />
+                            </button>
+                        </div>
+                        {isMenuOpen && (
+                            <div className="absolute top-20 left-0 w-full bg-white border-b border-slate-100 p-6 space-y-4 lg:hidden animate-in slide-in-from-top duration-300">
+                                {navLinks.map(link => (
+                                    <a key={link.id} href={link.href} onClick={() => setIsMenuOpen(false)} className="block font-black text-indigo-950 text-lg uppercase tracking-wider">{link.label}</a>
+                                ))}
+                                <button onClick={startQuiz} className="w-full bg-orange-500 text-white py-4 rounded-xl font-black text-lg">Book a Discovery call</button>
+                            </div>
+                        )}
+                    </nav>
+
+                    {/* Hero */}
+                    <section className="pt-48 pb-24 bg-slate-50 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-1/3 h-full bg-indigo-50/50 rounded-l-[100px] -z-0"></div>
+                        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                            <div className="space-y-10">
+                                <div className="inline-flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 shadow-sm">
+                                    <Icon name="zap" className="w-4 h-4 text-orange-500" />
+                                    <span>India's Most Trusted Career GPS</span>
+                                </div>
+                                <h1 className="text-6xl lg:text-8xl font-black text-indigo-950 leading-[0.9] tracking-tighter">Stop Guessing. <br/><span className="text-orange-500">Start Knowing.</span></h1>
+                                <p className="text-xl text-slate-600 leading-relaxed max-w-xl">From Board Selection to Career Roadmaps. We help you make the wisest decision of your life.</p>
+                                <div className="flex flex-col sm:flex-row gap-5">
+                                    <button onClick={startQuiz} className="bg-orange-500 text-white px-10 py-6 rounded-[2rem] font-black text-2xl shadow-2xl shadow-orange-500/30 hover:-translate-y-1 transition-all flex items-center justify-center gap-3">
+                                        Start My Journey
+                                        <Icon name="arrow-right" className="w-7 h-7" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="bg-white p-10 rounded-[4rem] shadow-2xl text-center space-y-6 border border-slate-100">
+                                <Icon name="award" className="w-12 h-12 text-indigo-600 animate-pulse mx-auto" />
+                                <p className="text-2xl font-black text-indigo-950 uppercase tracking-tighter">Career Mapping Active</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Apt Skola Reward - UPDATED BUTTON TO TRIGGER ORDER ID MODAL */}
+                    <section className="pt-32 pb-24 bg-indigo-950 text-white relative overflow-hidden">
+                        <div className="max-w-7xl mx-auto px-6 relative z-10">
+                            <div className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/50 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-orange-500 mb-8">🎟️ Apt Skola Reward: 50% OFF Unlocked</div>
+                            <h1 className="text-5xl lg:text-7xl font-black mb-8 leading-tight tracking-tighter text-indigo-50">Your Board DNA is Ready. <br/><span className="text-orange-500">Now, Build the Roadmap.</span></h1>
+                            <p className="text-xl text-slate-300 max-w-2xl leading-relaxed mb-12">The <strong className="font-bold text-white">Elite 5D Analysis</strong> transforms your Board match into a specific 15-year career strategy.</p>
+                            <div className="grid md:grid-cols-3 gap-8 mb-16">
+                                <div className="bg-white/5 p-8 rounded-3xl border border-white/10"><Icon name="brain-circuit" className="text-orange-500 mb-4 w-10 h-10"/><h3 className="text-xl font-bold mb-2 text-white">5D Psychometrics</h3><p className="text-slate-400 text-sm">Deep-dive into Personality, Interest, Skills, Values, and Learning Styles.</p></div>
+                                <div className="bg-white/5 p-8 rounded-3xl border border-white/10"><Icon name="users" className="text-orange-500 mb-4 w-10 h-10"/><h3 className="text-xl font-bold mb-2 text-white">1-on-1 Counseling</h3><p className="text-slate-400 text-sm">30-minute private session with a Career Architect to resolve family dilemmas.</p></div>
+                                <div className="bg-white/5 p-8 rounded-3xl border border-white/10"><Icon name="map" className="text-orange-500 mb-4 w-10 h-10"/><h3 className="text-xl font-bold mb-2 text-white">Personalized Plan</h3><p className="text-slate-400 text-sm">Custom roadmap mapping the child to the top 3 best-fit career paths.</p></div>
+                            </div>
+                            <div className="bg-white rounded-[3rem] p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-10">
+                                <div className="text-indigo-950"><h2 className="text-4xl font-black mb-2">The Elite Experience</h2><p className="text-slate-500 font-medium font-bold uppercase tracking-widest text-xs">Full 15-page Success Blueprint.</p></div>
+                                <div className="text-center md:text-right">
+                                    <div className="flex items-baseline justify-center md:justify-end gap-3 mb-2"><span className="text-6xl font-black text-indigo-950 tracking-tighter">₹1,249</span><span className="text-2xl text-slate-300 line-through">₹2,499</span></div>
+                                    <p className="text-orange-500 font-black uppercase text-[10px] tracking-widest mb-6">Special Price for Apt Skola Families</p>
+                                    <button onClick={() => setShowOrderIdModal(true)} className="bg-orange-500 text-white px-12 py-6 rounded-[2rem] font-black text-2xl shadow-2xl shadow-orange-500/30 hover:scale-105 transition-all">Claim My Elite Roadmap</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Ecosystem */}
+                    <section id="ecosystem" className="py-32 bg-white">
+                        <div className="max-w-7xl mx-auto px-6 text-center">
+                            <h2 className="text-5xl font-black text-indigo-950 mb-6 tracking-tight">The Success Staircase</h2>
+                            <div className="grid lg:grid-cols-2 gap-12 relative mt-24 max-w-4xl mx-auto">
+                                {/* Task 3: Success Staircase Sync */}
+                                <div className="p-12 bg-slate-50 rounded-[3rem] border-b-8 border-indigo-200 transition-all hover:translate-y-[-10px] text-left">
+                                    <span className="text-4xl font-black text-slate-200 mb-6 block">01</span>
+                                    <h3 className="text-2xl font-black text-indigo-950 mb-2">Apt Skola</h3>
+                                    <p className="text-slate-600 mb-10 leading-relaxed font-medium">Picking the right board based on learning DNA. <span className="text-indigo-600 font-bold block mt-1">Phase 1 of the Foviz 15-Year Roadmap.</span></p>
+                                    <button onClick={() => window.open(aptSkolaUrl, '_blank')} className="font-black text-indigo-950 flex items-center group">Go to Apt Skola <Icon name="arrow-right" className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-all"/></button>
+                                </div>
+                                <div className="p-12 bg-slate-50 rounded-[3rem] border-b-8 border-orange-200 transition-all hover:translate-y-[-10px] text-left">
+                                    <span className="text-4xl font-black text-slate-200 mb-6 block">02</span>
+                                    <h3 className="text-2xl font-black text-indigo-950 mb-2">5D Analysis</h3>
+                                    <p className="text-slate-600 mb-10 leading-relaxed">Mapping personality to 250+ specific career paths.</p>
+                                    <button onClick={() => document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})} className="font-black text-indigo-950 flex items-center group">See Pricing <Icon name="arrow-right" className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-all"/></button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* About Us */}
+                    <section id="about" className="py-32 bg-slate-50">
+                        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-24 items-center">
+                            <div className="space-y-12">
+                                <h2 className="text-6xl font-black text-indigo-950 tracking-tighter">Our Core Identity</h2>
+                                <p className="text-2xl text-slate-600 leading-relaxed italic">"We bridge the guidance gap in India, ensuring every career choice is made by design, not by accident."</p>
+                                <div className="grid gap-10">
+                                    <div className="flex gap-6"><div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-xl"><Icon name="target" className="w-8 h-8" /></div><div><h4 className="font-black text-xl text-indigo-950 mb-2 text-indigo-600">The Mission</h4><p className="text-slate-500 font-medium">Providing families with scientific, data-driven clarity for every stage of their journey.</p></div></div>
+                                    <div className="flex gap-6"><div className="bg-orange-500 w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-xl"><Icon name="eye" className="w-8 h-8" /></div><div><h4 className="font-black text-xl text-indigo-950 mb-2 text-orange-500">The Vision</h4><p className="text-slate-500 font-medium">To become India’s most trusted Career GPS, transforming 1 million students into thriving professionals.</p></div></div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100"><h3 className="text-3xl font-black text-indigo-950 mb-10 uppercase tracking-widest text-sm text-slate-400">Our Values</h3><ul className="space-y-8">
+                                {[{ title: "Scientific Integrity", icon: "brain", desc: "Decisions backed by 5D Psychometrics." }, { title: "Student-First Empathy", icon: "heart", desc: "We see the human behind the test scores." }, { title: "Radical Transparency", icon: "search", desc: "Honest data about institutional performance." }].map((v, i) => (
+                                    <li key={i} className="flex gap-6 items-start"><div className="p-4 bg-slate-50 rounded-2xl text-indigo-600"><Icon name={v.icon} className="w-6 h-6"/></div><div><h5 className="font-black text-lg text-indigo-950">{v.title}</h5><p className="text-sm text-slate-400 font-bold uppercase tracking-widest">{v.desc}</p></div></li>
+                                ))}
+                            </ul></div>
+                        </div>
+                    </section>
+
+                    {/* Dedicated Sample Report Section */}
+                    <section id="sample-report" className="py-32 bg-white border-y border-slate-100 overflow-hidden">
+                        <div className="max-w-7xl mx-auto px-6">
+                            <div className="text-center mb-20">
+                                <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.4em] mb-4">Elite 5D Analysis</h2>
+                                <h3 className="text-5xl lg:text-6xl font-black text-indigo-950 tracking-tighter">Peek Inside Your Success Blueprint</h3>
+                                <p className="text-xl text-slate-500 mt-6 max-w-2xl mx-auto font-medium">Experience the depth of our data-driven 36-page analysis. Map your future with the precision of Elite 5D diagnostics.</p>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+                                <div className="bg-slate-50 p-8 rounded-[3rem] shadow-xl border border-slate-100 flex flex-col h-full transform hover:-translate-y-2 transition-all duration-500">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <span className="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase">Page 03</span>
+                                        <Icon name="brain-circuit" className="text-indigo-600 w-8 h-8" />
+                                    </div>
+                                    <h4 className="text-xl font-black text-indigo-950 mb-4 text-left">Psychometric DNA</h4>
+                                    <div className="space-y-3 mb-6 flex-grow">
+                                        <div className="flex justify-between text-[11px] font-bold text-slate-400"><span>EXTROVERT</span><span>57%</span></div>
+                                        <div className="h-2 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-indigo-600" style={{ width: '57%' }}></div></div>
+                                        <div className="flex justify-between text-[11px] font-bold text-slate-400"><span>JUDGING (ORG)</span><span>86% </span></div>
+                                        <div className="h-2 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-orange-500" style={{ width: '86%' }}></div></div>
+                                    </div>
+                                    <p className="text-sm text-slate-500 italic text-left">"Result: ESTJ Type - Logical, task-oriented, and decisive leader."</p>
+                                </div>
+
+                                <div className="bg-slate-50 p-8 rounded-[3rem] shadow-xl border border-slate-100 flex flex-col h-full transform hover:-translate-y-2 transition-all duration-500 delay-75">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <span className="bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase">Page 14</span>
+                                        <Icon name="bar-chart-3" className="text-emerald-600 w-8 h-8" />
+                                    </div>
+                                    <h4 className="text-xl font-black text-indigo-950 mb-4 text-left">Industry Clusters</h4>
+                                    <div className="space-y-4 mb-6 flex-grow">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center font-black text-indigo-950 border border-slate-200">98%</div>
+                                            <div className="text-[11px] font-bold text-indigo-950 uppercase">Information Tech </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center font-black text-indigo-950 border border-slate-200">86%</div>
+                                            <div className="text-[11px] font-bold text-indigo-950 uppercase text-left">Science & Eng.</div>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-slate-500 text-left">Mapping 250+ careers to personal DNA.</p>
+                                </div>
+
+                                <div className="bg-slate-50 p-8 rounded-[3rem] shadow-xl border border-slate-100 flex flex-col h-full transform hover:-translate-y-2 transition-all duration-500 delay-150">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <span className="bg-orange-50 text-orange-600 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase">Page 13</span>
+                                        <Icon name="gauge" className="text-orange-600 w-8 h-8" />
+                                    </div>
+                                    <h4 className="text-xl font-black text-indigo-950 mb-4 text-left">Ability Heatmap</h4>
+                                    <div className="grid grid-cols-2 gap-2 mb-6 flex-grow">
+                                        <div className="bg-white p-3 rounded-2xl text-center border border-slate-200">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Numerical</p>
+                                            <p className="text-lg font-black text-indigo-950">80%</p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-2xl text-center border border-slate-200">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Social</p>
+                                            <p className="text-lg font-black text-indigo-950">100%</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-orange-600 font-black uppercase tracking-tighter text-left">Analysis: Excellent Social & Cooperation Skills</p>
+                                </div>
+
+                                <div 
+                                    onClick={() => document.getElementById('pricing').scrollIntoView({behavior:'smooth'})}
+                                    className="bg-indigo-950 p-8 rounded-[3rem] shadow-2xl flex flex-col h-full relative group cursor-pointer overflow-hidden transform hover:-translate-y-2 transition-all duration-500 delay-200"
+                                >
+                                    <div className="absolute inset-0 bg-indigo-950/40 backdrop-blur-[6px] z-10 flex items-center justify-center">
+                                        <span className="bg-white text-indigo-950 px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl">Unlock Elite Roadmap</span>
+                                    </div>
+                                    <div className="flex justify-between items-start mb-8 opacity-40">
+                                        <span className="bg-white/10 text-white px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase">Page 32</span>
+                                        <Icon name="map-pin" className="text-white w-8 h-8" />
+                                    </div>
+                                    <h4 className="text-xl font-black text-white mb-4 opacity-40 text-left">Career Blueprint</h4>
+                                    <div className="space-y-4 opacity-20">
+                                        <div className="h-4 bg-white/20 rounded-full w-3/4"></div>
+                                        <div className="h-4 bg-white/20 rounded-full w-1/2"></div>
+                                    </div>
+                                    <p className="text-xs text-white/40 mt-auto text-left">Detailed subject selection for Grade 11 & 12 based on Nano Tech fit.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Testimonials */}
+                    <section id="testimonials" className="py-32 bg-indigo-950 text-white relative overflow-hidden">
+                        <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
+                            <h2 className="text-5xl lg:text-7xl font-black mb-12 tracking-tight">Success Stories</h2>
+                            <div className="flex flex-wrap justify-center gap-4 mb-16">
+                                {['parents', 'professionals', 'graduates'].map(tab => (<button key={tab} onClick={() => setTestimonialTab(tab)} className={`px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all ${testimonialTab === tab ? 'bg-orange-500 text-white shadow-2xl' : 'bg-white/5 hover:bg-white/10 text-indigo-200'}`}>{tab}</button>))}
+                            </div>
+                            <div className="grid lg:grid-cols-3 gap-8">
+                                {testimonials[testimonialTab].map((t, i) => (
+                                    <div key={i} className="bg-white/5 p-12 rounded-[3.5rem] border border-white/10 flex flex-col text-left group hover:bg-white/10 transition-all"><div className="flex text-orange-500 mb-8"><Icon name="star" className="w-5 h-5 fill-current" /><Icon name="star" className="w-5 h-5 fill-current" /><Icon name="star" className="w-5 h-5 fill-current" /><Icon name="star" className="w-5 h-5 fill-current" /><Icon name="star" className="w-5 h-5 fill-current" /></div><h4 className="text-2xl font-black mb-6 text-white leading-tight">"{t.title}"</h4><p className="italic text-indigo-100/70 mb-12 leading-relaxed text-lg">"{t.quote}"</p><div className="mt-auto flex items-center gap-4"><div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center font-black text-white uppercase text-xl">{t.name[0]}</div><p className="font-black text-white">{t.name}</p></div></div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Pricing */}
+                    <section id="pricing" className="py-32 bg-white">
+                        <div className="max-w-7xl mx-auto px-6 text-center">
+                            <h2 className="text-5xl font-black text-indigo-950 mb-24 tracking-tight">Investment in Certainty</h2>
+                            <div className="grid lg:grid-cols-3 gap-8 items-stretch mb-20">
+                                <div className="p-12 rounded-[3rem] bg-slate-50 border-2 border-slate-100 flex flex-col group transition-all text-left"><h3 className="text-2xl font-black">Starter</h3><div className="text-6xl font-black my-12 text-indigo-950 tracking-tighter">₹499</div><ul className="space-y-4 mb-12 flex-grow">{['Basic Suitability', 'Top 1 Rec', '2-Page Summary'].map(f=>(<li key={f} className="flex gap-3 text-slate-600 font-medium"><Icon name="check-circle-2" className="text-indigo-600 w-5 h-5"/>{f}</li>))}</ul><button onClick={() => window.open(link499, '_blank')} className="w-full py-5 bg-white border-2 border-slate-200 font-black rounded-2xl transition-all uppercase tracking-widest text-xs">Get Started</button></div>
+                                <div className="p-12 rounded-[3rem] bg-white border-4 border-indigo-600 shadow-2xl scale-105 flex flex-col relative z-10 text-left"><div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">Recommended Choice</div><h3 className="text-2xl font-black">Elite</h3><div className="text-6xl font-black my-12 text-indigo-950 tracking-tighter">₹2,499</div><ul className="space-y-4 mb-12 flex-grow">{['Full 5D Analysis', '3 Best-Fit Options', '30-Min 1-on-1 Session', 'Personalized Plan'].map(f=>(<li key={f} className="flex gap-3 text-indigo-950 font-bold"><Icon name="check-circle-2" className="text-indigo-600 w-5 h-5"/>{f}</li>))}</ul><button onClick={() => handlePaymentRedirect(linkPremium)} className="w-full py-6 bg-orange-500 text-white font-black rounded-2xl shadow-2xl shadow-orange-500/30 uppercase tracking-widest text-xs transition-all hover:scale-105">Book Elite Session</button></div>
+                                <div className="p-12 rounded-[3rem] bg-slate-50 border-2 border-slate-100 flex flex-col group transition-all text-left"><h3 className="text-2xl font-black">Pro</h3><div className="text-6xl font-black my-12 text-indigo-950 tracking-tighter">₹999</div><ul className="space-y-4 mb-12 flex-grow">{['Full 5D Analysis', '1 Best-Fit Options', '15+ Page Deep Dive'].map(f=>(<li key={f} className="flex gap-3 text-slate-600 font-medium"><Icon name="check-circle-2" className="text-indigo-600 w-5 h-5"/>{f}</li>))}</ul><button onClick={() => handlePaymentRedirect(linkPremium)} className="w-full py-5 bg-indigo-50 text-indigo-950 font-black rounded-2xl transition-all uppercase tracking-widest text-xs">Get Comprehensive</button></div>
+                            </div>
+
+                            <div className="mt-20 overflow-x-auto">
+                                <table className="w-full border-collapse bg-white rounded-[2rem] overflow-hidden authority-shadow">
+                                    <thead>
+                                        <tr className="bg-indigo-950 text-white">
+                                            <th className="p-6 text-left text-sm font-black uppercase tracking-widest">Core Features</th>
+                                            <th className="p-6 text-center text-sm font-black uppercase tracking-widest">Starter</th>
+                                            <th className="p-6 text-center text-sm font-black uppercase tracking-widest bg-orange-500">Elite</th>
+                                            <th className="p-6 text-center text-sm font-black uppercase tracking-widest">Pro</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-indigo-950 font-medium text-left">
+                                        <tr className="border-b border-slate-100">
+                                            <td className="p-6">5D Psychometric DNA Analysis</td>
+                                            <td className="p-6 text-center text-slate-400 text-xs">Basic</td>
+                                            <td className="p-6 text-center font-bold bg-orange-50/30">Full 5-Dimension</td>
+                                            <td className="p-6 text-center text-slate-400 text-xs">Full</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-100">
+                                            <td className="p-6">Career Path Recommendations</td>
+                                            <td className="p-6 text-center text-slate-400 text-xs">Top 1</td>
+                                            <td className="p-6 text-center font-bold bg-orange-50/30">Top 3 Primary</td>
+                                            <td className="p-6 text-center text-slate-400 text-xs">1 Best-Fit</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-100">
+                                            <td className="p-6">1-on-1 Session with Career Architect</td>
+                                            <td className="p-6 text-center"><Icon name="minus" className="mx-auto text-slate-300" /></td>
+                                            <td className="p-6 text-center font-bold bg-orange-50/30">30-Min Private</td>
+                                            <td className="p-6 text-center"><Icon name="minus" className="mx-auto text-slate-300" /></td>
+                                        </tr>
+                                        <tr className="border-b border-slate-100">
+                                            <td className="p-6">15-Page Success Blueprint (PDF)</td>
+                                            <td className="p-6 text-center text-slate-400 text-xs">2-Page Summary</td>
+                                            <td className="p-6 text-center font-bold bg-orange-50/30"><Icon name="check-circle-2" className="mx-auto text-orange-500" /></td>
+                                            <td className="p-6 text-center"><Icon name="check-circle-2" className="mx-auto text-indigo-600" /></td>
+                                        </tr>
+                                        <tr>
+                                            <td className="p-6">Subject Selection Roadmap (Grades 11/12)</td>
+                                            <td className="p-6 text-center"><Icon name="minus" className="mx-auto text-slate-300" /></td>
+                                            <td className="p-6 text-center font-bold bg-orange-50/30"><Icon name="check-circle-2" className="mx-auto text-orange-500" /></td>
+                                            <td className="p-6 text-center"><Icon name="check-circle-2" className="mx-auto text-indigo-600" /></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Careers Section */}
+                    <section id="careers" className="py-32 bg-white border-t border-slate-100">
+                        <div className="max-w-7xl mx-auto px-6 text-center">
+                            <div className="inline-flex items-center gap-2 bg-indigo-50 border border-slate-200 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 shadow-sm mb-6">
+                                <Icon name="briefcase" className="w-4 h-4 text-orange-500" />
+                                <span>Join Our Mission</span>
+                            </div>
+                            <h2 className="text-4xl lg:text-6xl font-black text-indigo-950 mb-6 tracking-tight">Build Your Career While Shaping The Future Of Education</h2>
+                            <p className="text-xl text-slate-500 max-w-3xl mx-auto font-medium mb-20 leading-relaxed">
+                                We are looking for ambitious, target-driven sales and business development leaders to scale career clarity across schools in India.
+                            </p>
+
+                            <div className="grid lg:grid-cols-3 gap-8 items-stretch">
+                                {/* Card 1: BD Intern */}
+                                <div className="p-10 rounded-[3rem] bg-slate-50 border border-slate-100 hover:border-indigo-600/30 hover:shadow-2xl transition-all duration-300 flex flex-col text-left">
+                                    <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mb-6">
+                                        <Icon name="graduation-cap" className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-indigo-950 mb-2">Business Development Intern</h3>
+                                    <p className="text-xs text-orange-500 font-black uppercase tracking-widest mb-6">3-Month Performance Program</p>
+                                    <div className="space-y-4 mb-10 flex-grow">
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-600 font-medium">Uncapped commissions per closed session from Day 1.</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-600 font-medium">Performance stipend unlocks upon reaching baseline target (3 school sessions or equivalent student packages).</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-600 font-medium">14-day evaluation period. High-performers who close 3 school sessions within 3 months automatically transition to Management Trainee.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => { setSelectedCareerRole("BD Intern"); setShowCareerModal(true); }}
+                                        className="w-full py-5 bg-white border-2 border-slate-200 font-black text-indigo-950 rounded-2xl hover:bg-indigo-950 hover:text-white hover:border-indigo-950 transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        Apply for Internship
+                                    </button>
+                                </div>
+
+                                {/* Card 2: Management Trainee */}
+                                <div className="p-10 rounded-[3rem] bg-white border-4 border-indigo-600 hover:shadow-2xl transition-all duration-300 flex flex-col relative z-10 text-left">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                                        Accelerated Leadership
+                                    </div>
+                                    <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 mt-2">
+                                        <Icon name="rocket" className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-indigo-950 mb-2">Management Trainee - Sales & B2B</h3>
+                                    <p className="text-xs text-indigo-600 font-black uppercase tracking-widest mb-6">Accelerated Leadership Track</p>
+                                    <div className="space-y-4 mb-10 flex-grow">
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-indigo-950 font-bold">Fixed Base Salary + Uncapped Deal Commissions.</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-700 font-semibold">Close 9 school sessions in 6 months to promote to Assistant Manager (3/mo average).</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-700 font-semibold">Close 5 sessions/month consistently for 6 months to unlock Deputy Manager & Lead roles.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => { setSelectedCareerRole("Management Trainee"); setShowCareerModal(true); }}
+                                        className="w-full py-5 bg-orange-500 text-white font-black rounded-2xl shadow-2xl shadow-orange-500/20 hover:scale-[1.03] transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        Apply Full-Time
+                                    </button>
+                                </div>
+
+                                {/* Card 3: Educator & Student Partners */}
+                                <div className="p-10 rounded-[3rem] bg-slate-50 border border-slate-100 hover:border-indigo-600/30 hover:shadow-2xl transition-all duration-300 flex flex-col text-left">
+                                    <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mb-6">
+                                        <Icon name="users" className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-indigo-950 mb-2">Educator & Student Partners</h3>
+                                    <p className="text-xs text-orange-500 font-black uppercase tracking-widest mb-6">Flexible / Independent Partner Track</p>
+                                    <div className="space-y-4 mb-10 flex-grow">
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-600 font-medium">Pure performance commission: ₹300 per individual referral.</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-600 font-medium">₹3,000 per school-wide engagement referral.</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Icon name="check-circle-2" className="text-indigo-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-600 font-medium">Ideal for teachers, tutors, and independent educational counselors seeking secondary income.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowPartnerModal(true)}
+                                        className="w-full py-5 bg-white border-2 border-slate-200 font-black text-indigo-950 rounded-2xl hover:bg-indigo-950 hover:text-white hover:border-indigo-950 transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        Join Partner Network
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Educator Partner Section */}
+                    <section id="educatorPartner" className="py-32 bg-slate-50 border-y border-slate-100 text-center">
+                        <div className="max-w-4xl mx-auto px-6">
+                            <Icon name="users" className="text-indigo-600 w-16 h-16 mx-auto mb-8 bg-indigo-100 p-4 rounded-2xl" />
+                            <h2 className="text-4xl lg:text-5xl font-black text-indigo-950 mb-6 tracking-tight">Are you an Educator? Join the Foviz Partner Program.</h2>
+                            <p className="text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto">Help parents find the right foundation. Join our network of professional career consultants.</p>
+                            
+                            {/* NEW LINE ADDED HERE */}
+                            <p className="text-orange-600 font-bold mt-4 mb-10 text-lg">
+                                Teachers and Tutors: Join our network. Earn ₹300 for student referrals and ₹3,000 per session for school-wide engagement.
+                            </p>
+
+                            <button onClick={() => setShowPartnerModal(true)} className="bg-indigo-950 text-white px-16 py-6 rounded-[2rem] font-black text-xl hover:shadow-2xl hover:shadow-indigo-950/30 transition-all">Register as Partner</button>
+                        </div>
+                    </section>
+
+                    {/* Pathfinder Quiz Section */}
+                    <section className="py-32 bg-indigo-950 text-center relative overflow-hidden">
+                        <div className="max-w-4xl mx-auto px-6 relative z-10">
+                            <h2 className="text-4xl lg:text-6xl font-black text-white mb-8 tracking-tight">Do not know where to start?</h2>
+                            <p className="text-xl text-indigo-200 mb-12 max-w-2xl mx-auto leading-relaxed">Take our 60-second 'Pathfinder Quiz' and we will recommend the right starting point for your child's age and challenges.</p>
+                            <button onClick={startQuiz} className="bg-white text-indigo-950 px-16 py-7 rounded-[3rem] font-black text-2xl hover:bg-slate-100 transition-all shadow-2xl hover:-translate-y-2">Take Pathfinder Quiz</button>
+                        </div>
+                    </section>
+
+                    {/* Footer */}
+                    <footer className="py-24 bg-white border-t border-slate-200 text-center">
+                        <div className="flex flex-col items-center">
+                            <span className="text-4xl font-[900] tracking-tighter text-indigo-950 leading-none">
+                                FOVIZ<span className="text-orange-500">.</span>
+                            </span>
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 mt-2">
+                                Home of Apt Skola
+                            </span>
+                        </div>
+                        
+                        <div className="mt-8 flex justify-center gap-8">
+                            <button 
+                                onClick={() => { setSelectedCareerRole(""); setShowCareerModal(true); }} 
+                                className="text-slate-400 hover:text-indigo-600 text-xs font-bold uppercase tracking-widest transition-colors underline underline-offset-4"
+                            >
+                                Careers
+                            </button>
+                            <button 
+                                onClick={() => setShowTermsModal(true)} 
+                                className="text-slate-400 hover:text-indigo-600 text-xs font-bold uppercase tracking-widest transition-colors underline underline-offset-4"
+                            >
+                                Partner Payout Policy
+                            </button>
+                        </div>
+                        <p className="mt-4 text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">© 2025 Foviz Career Guidance. All Rights Reserved.</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
