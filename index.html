@@ -37,7 +37,6 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -57,16 +56,11 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Initialize Supabase Client
-        // Replace with your actual Supabase Project URL and Anon Key
-        const supabaseUrl = 'YOUR_SUPABASE_PROJECT_URL';
-        const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
-        const supabase = window.supabase && supabaseUrl !== 'YOUR_SUPABASE_PROJECT_URL'
-            ? window.supabase.createClient(supabaseUrl, supabaseAnonKey)
-            : null;
+        // Replace with your Google Apps Script Web App URL after deployment
+        const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbzmnO6I-uSi4mhOSsSYPlDB1yX3HjGkou0jmVair4YAZE0LOYbSV0nWER9iDrTBNP13hg/exec';
 
-        if (!supabase) {
-            console.warn("Supabase is not configured. Please replace 'YOUR_SUPABASE_PROJECT_URL' and 'YOUR_SUPABASE_ANON_KEY' with your actual Supabase credentials.");
+        if (googleScriptUrl === 'YOUR_GOOGLE_SCRIPT_URL') {
+            console.warn("Google Sheets endpoint is not configured. Please replace 'YOUR_GOOGLE_SCRIPT_URL' with your actual Apps Script URL.");
         }
 
         const Icon = ({ name, className = "w-6 h-6", ...props }) => {
@@ -124,82 +118,84 @@
                 e.preventDefault();
                 const formData = new FormData(e.target);
 
-                if (!supabase) {
-                    alert("Submission failed: Supabase is not configured. Please add your Supabase Project URL and Anon Key in the code.");
+                if (googleScriptUrl === 'YOUR_GOOGLE_SCRIPT_URL') {
+                    alert("Submission failed: Google Sheets URL is not configured. Please add your Apps Script URL in the code.");
                     return;
                 }
 
                 try {
+                    let payload = { formName: formName };
+
                     if (formName === "career-application") {
                         const file = formData.get("resume");
-                        let resumeUrl = "";
+                        let base64Data = "";
+                        let fileName = "";
+                        let fileType = "";
 
                         if (file && file.size > 0) {
-                            // Upload file to the 'resumes' storage bucket
-                            const fileExt = file.name.split('.').pop();
-                            const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+                            fileName = file.name;
+                            fileType = file.type;
                             
-                            const { data: uploadData, error: uploadError } = await supabase.storage
-                                .from("resumes")
-                                .upload(fileName, file);
-
-                            if (uploadError) throw uploadError;
-
-                            // Retrieve public URL of the uploaded file
-                            const { data: { publicUrl } } = supabase.storage
-                                .from("resumes")
-                                .getPublicUrl(fileName);
+                            const readAsBase64 = (f) => new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.readAsDataURL(f);
+                                reader.onload = () => resolve(reader.result.split(',')[1]);
+                                reader.onerror = (error) => reject(error);
+                            });
                             
-                            resumeUrl = publicUrl;
+                            base64Data = await readAsBase64(file);
                         }
 
-                        // Save details to the career_applications database table
-                        const { error: insertError } = await supabase
-                            .from("career_applications")
-                            .insert([{
-                                name: formData.get("name"),
-                                phone: formData.get("phone"),
-                                role: formData.get("role"),
-                                linkedin: formData.get("linkedin") || null,
-                                resume_url: resumeUrl,
-                                why_fit: formData.get("whyFit")
-                            }]);
-
-                        if (insertError) throw insertError;
+                        payload = {
+                            formName: formName,
+                            name: formData.get("name"),
+                            phone: formData.get("phone"),
+                            role: formData.get("role"),
+                            linkedin: formData.get("linkedin") || "",
+                            whyFit: formData.get("whyFit"),
+                            resumeData: base64Data,
+                            resumeName: fileName,
+                            resumeType: fileType
+                        };
                     } else if (formName === "discovery-call") {
-                        const { error } = await supabase
-                            .from("discovery_calls")
-                            .insert([{
-                                name: formData.get("name"),
-                                phone: formData.get("phone"),
-                                school: formData.get("school"),
-                                time: formData.get("time")
-                            }]);
-                        if (error) throw error;
+                        payload = {
+                            formName: formName,
+                            name: formData.get("name"),
+                            phone: formData.get("phone"),
+                            school: formData.get("school"),
+                            time: formData.get("time")
+                        };
                     } else if (formName === "partner-registration") {
-                        const { error } = await supabase
-                            .from("partner_registrations")
-                            .insert([{
-                                name: formData.get("name"),
-                                phone: formData.get("phone"),
-                                organization: formData.get("organization"),
-                                time: formData.get("time")
-                            }]);
-                        if (error) throw error;
+                        payload = {
+                            formName: formName,
+                            name: formData.get("name"),
+                            phone: formData.get("phone"),
+                            organization: formData.get("organization"),
+                            time: formData.get("time")
+                        };
                     } else if (formName === "elite-redirection") {
-                        const { error } = await supabase
-                            .from("elite_redirections")
-                            .insert([{
-                                order_id: formData.get("orderId"),
-                                source: formData.get("source") || "Direct"
-                            }]);
-                        if (error) throw error;
+                        payload = {
+                            formName: formName,
+                            orderId: formData.get("orderId"),
+                            source: formData.get("source") || "Direct"
+                        };
                     }
 
-                    // On successful insert, trigger the callback
-                    callback();
+                    // Post JSON payload directly to the Google Web App script URL
+                    const response = await fetch(googleScriptUrl, {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.status === "success") {
+                        callback();
+                    } else {
+                        throw new Error(result.message || "Failed to record submission.");
+                    }
                 } catch (error) {
-                    console.error("Supabase Submission Error:", error);
+                    console.error("Google Sheets Submission Error:", error);
                     alert("Something went wrong during submission: " + (error.message || error));
                 }
             };
