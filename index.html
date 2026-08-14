@@ -182,18 +182,19 @@
                     }
 
                     // Post JSON payload directly to the Google Web App script URL
-                    const response = await fetch(googleScriptUrl, {
+                    // Using no-cors mode to bypass redirect CORS limitations of Google Apps Script
+                    await fetch(googleScriptUrl, {
                         method: "POST",
+                        mode: "no-cors",
+                        headers: {
+                            "Content-Type": "text/plain"
+                        },
                         body: JSON.stringify(payload)
                     });
 
-                    const result = await response.json();
-                    
-                    if (result.status === "success") {
-                        callback();
-                    } else {
-                        throw new Error(result.message || "Failed to record submission.");
-                    }
+                    // In no-cors mode, the response is opaque, so we cannot check status or parse JSON.
+                    // We invoke the callback assuming success if the fetch promise resolves without throwing.
+                    callback();
                 } catch (error) {
                     console.error("Google Sheets Submission Error:", error);
                     alert("Something went wrong during submission: " + (error.message || error));
