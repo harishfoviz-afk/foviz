@@ -80,6 +80,7 @@
             const [showTermsModal, setShowTermsModal] = useState(false);
             const [showOrderIdModal, setShowOrderIdModal] = useState(false); 
             const [showCareerModal, setShowCareerModal] = useState(false);
+            const [isSubmitting, setIsSubmitting] = useState(false);
             const [selectedCareerRole, setSelectedCareerRole] = useState("");
             const [testimonialTab, setTestimonialTab] = useState('parents');
             const [quizStep, setQuizStep] = useState(1);
@@ -116,6 +117,7 @@
 
              const handleSubmit = async (e, formName, callback) => {
                 e.preventDefault();
+                setIsSubmitting(true);
                 const formData = new FormData(e.target);
 
                 if (googleScriptUrl === 'YOUR_GOOGLE_SCRIPT_URL') {
@@ -198,6 +200,8 @@
                 } catch (error) {
                     console.error("Google Sheets Submission Error:", error);
                     alert("Something went wrong during submission: " + (error.message || error));
+                } finally {
+                    setIsSubmitting(false);
                 }
             };
 
@@ -309,7 +313,13 @@
                                         <option>Afternoon (12 PM - 4 PM)</option>
                                         <option>Evening (4 PM - 8 PM)</option>
                                     </select>
-                                    <button type="submit" className="w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4">Schedule Call</button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmitting} 
+                                        className={`w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4 transition-all ${isSubmitting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-900'}`}
+                                    >
+                                        {isSubmitting ? "Submitting..." : "Schedule Call"}
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -351,8 +361,12 @@
                                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold" 
                                         required 
                                     />
-                                    <button type="submit" className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-lg shadow-xl hover:bg-orange-600 transition-all">
-                                        Verify & Proceed
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmitting} 
+                                        className={`w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-lg shadow-xl hover:bg-orange-600 transition-all ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    >
+                                        {isSubmitting ? "Verifying..." : "Verify & Proceed"}
                                     </button>
                                 </form>
                             </div>
@@ -392,7 +406,13 @@
                                         <option>Post-School Hours</option>
                                         <option>Weekends</option>
                                     </select>
-                                    <button type="submit" className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4">Submit Registration</button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmitting} 
+                                        className={`w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4 transition-all ${isSubmitting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-500'}`}
+                                    >
+                                        {isSubmitting ? "Submitting..." : "Submit Registration"}
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -465,7 +485,13 @@
                                     
                                     <textarea name="whyFit" placeholder="Why are you a good fit for this role?" rows="4" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required></textarea>
                                     
-                                    <button type="submit" className="w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4 hover:bg-indigo-900 transition-all">Submit Application</button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmitting} 
+                                        className={`w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl mt-4 transition-all ${isSubmitting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-900'}`}
+                                    >
+                                        {isSubmitting ? "Submitting..." : "Submit Application"}
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -586,8 +612,8 @@
                     {/* Apt Skola Reward - UPDATED BUTTON TO TRIGGER ORDER ID MODAL */}
                     <section className="pt-32 pb-24 bg-indigo-950 text-white relative overflow-hidden">
                         <div className="max-w-7xl mx-auto px-6 relative z-10">
-                            <div className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/50 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-orange-500 mb-8">🎟️ Apt Skola Reward: 50% OFF Unlocked</div>
-                            <h1 className="text-5xl lg:text-7xl font-black mb-8 leading-tight tracking-tighter text-indigo-50">Your Board DNA is Ready. <br/><span className="text-orange-500">Now, Build the Roadmap.</span></h1>
+                            <a href="https://aptskola.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/50 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-orange-500 hover:bg-orange-500/30 transition-all mb-8">🎟️ Apt Skola Reward: 50% OFF Unlocked</a>
+                            <h1 className="text-5xl lg:text-7xl font-black mb-8 leading-tight tracking-tighter text-indigo-50">Your <a href="https://aptskola.com" target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:text-yellow-300 hover:underline transition-colors">Board DNA</a> is Ready. <br/><span className="text-orange-500">Now, Build the Roadmap.</span></h1>
                             <p className="text-xl text-slate-300 max-w-2xl leading-relaxed mb-12">The <strong className="font-bold text-white">Elite 5D Analysis</strong> transforms your Board match into a specific 15-year career strategy.</p>
                             <div className="grid md:grid-cols-3 gap-8 mb-16">
                                 <div className="bg-white/5 p-8 rounded-3xl border border-white/10"><Icon name="brain-circuit" className="text-orange-500 mb-4 w-10 h-10"/><h3 className="text-xl font-bold mb-2 text-white">5D Psychometrics</h3><p className="text-slate-400 text-sm">Deep-dive into Personality, Interest, Skills, Values, and Learning Styles.</p></div>
