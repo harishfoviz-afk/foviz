@@ -60,7 +60,7 @@
         // Supabase configuration - Replace with your project details
         // These can also be configured dynamically in the browser local storage (visit website/#admin)
         const supabaseUrl = localStorage.getItem('FOV_SUPABASE_URL') || 'https://vpetrkeugpqxdhscubup.supabase.co';
-        const supabaseKey = localStorage.getItem('FOV_SUPABASE_ANON_KEY') || 'sb_publishable_wewpKG9EoxcgaV8zhGwjOw_MeGxNgPI';
+        const supabaseKey = localStorage.getItem('FOV_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXRya2V1Z3BxeGRoc2N1YnVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MDkzMjYsImV4cCI6MjEwMjM4NTMyNn0.yvsRmrkEI21Y0UwhB__I0Vv2iLryXVJ2xhVRC2uackg';
         
         let supabase = null;
         try {
@@ -1503,6 +1503,9 @@
                     // Authenticate securely with a fixed email and entered passcode.
                     // The password (KUNTA) is evaluated in the Supabase backend.
                     // It is NEVER hardcoded in the frontend client source code, so it is 100% safe from inspection.
+                    if (!supabase) {
+                        throw new Error("Supabase client is not initialized. This usually happens when the Supabase Anon Key is invalid or malformed (it must start with 'eyJ').");
+                    }
                     const { error } = await supabase.auth.signInWithPassword({ 
                         email: 'admin@foviz.in', 
                         password: password 
