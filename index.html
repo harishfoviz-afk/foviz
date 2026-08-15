@@ -72,6 +72,93 @@
             return <i data-lucide={name} className={className} aria-hidden="true" {...props}></i>;
         };
 
+        const calculateCandidateScore = (answers, tabSwitchCount, pasteAttempted) => {
+            const mcqValues = {
+                q1: { A: 10, B: 0, C: 5, D: 0 },
+                q2: { A: 10, B: 0, C: 5, D: 0 },
+                q3: { A: 5, B: 10, C: 0, D: 0 },
+                q5: { A: 10, B: 0, C: 0, D: 5 },
+                q7: { A: 10, B: 0, C: 5, D: 0 },
+                q8: { A: 0, B: 10, C: 5, D: 0 },
+                q9: { A: 0, B: 10, C: 5, D: 0 }
+            };
+
+            let rawMcqScore = 0;
+            const mcqKeys = ['q1', 'q2', 'q3', 'q5', 'q7', 'q8', 'q9'];
+            mcqKeys.forEach(q => {
+                const ans = answers[q];
+                if (ans && mcqValues[q] && mcqValues[q][ans] !== undefined) {
+                    rawMcqScore += mcqValues[q][ans];
+                }
+            });
+            const mcqScore = Math.round((rawMcqScore / 70) * 60);
+
+            // Text scoring
+            const textAnswers = [answers.q4 || "", answers.q6 || "", answers.q10 || ""];
+            let wordCountPoints = 0;
+            let keywordPoints = 0;
+            
+            const keywords = ["visited", "called", "mapped", "followed up", "pitched", "pipeline", "network"];
+
+            textAnswers.forEach(ans => {
+                const cleanText = ans.trim();
+                if (cleanText) {
+                    const words = cleanText.split(/\s+/).filter(w => w.length > 0);
+                    if (words.length >= 30) {
+                        wordCountPoints += 3;
+                    }
+                    
+                    const lowerText = cleanText.toLowerCase();
+                    keywords.forEach(keyword => {
+                        let matched = false;
+                        if (keyword === "followed up") {
+                            if (lowerText.includes("followed up") || lowerText.includes("follow up") || lowerText.includes("following up")) {
+                                matched = true;
+                            }
+                        } else {
+                            const regex = new RegExp(`\\b${keyword}\\b|\\b${keyword}ed\\b|\\b${keyword}ing\\b|\\b${keyword}s\\b`, 'i');
+                            if (regex.test(lowerText) || lowerText.includes(keyword)) {
+                                matched = true;
+                            }
+                        }
+                        if (matched) {
+                            keywordPoints += 2;
+                        }
+                    });
+                }
+            });
+
+            const textScore = Math.min(30, wordCountPoints + keywordPoints);
+
+            // Proctoring
+            let proctoringScore = 10;
+            if (tabSwitchCount > 2) proctoringScore -= 10;
+            if (pasteAttempted) proctoringScore -= 5;
+            proctoringScore = Math.max(0, proctoringScore);
+
+            const finalScore = mcqScore + textScore + proctoringScore;
+
+            let tier = "Tier 3: Low Match";
+            if (finalScore >= 85) {
+                tier = "Tier 1: High-Drive Hunter";
+            } else if (finalScore >= 65) {
+                tier = "Tier 2: Intern Performance Track";
+            }
+
+            const proctorFlags = [];
+            if (tabSwitchCount > 2) proctorFlags.push(`Tab switches: ${tabSwitchCount}`);
+            if (pasteAttempted) proctorFlags.push("Paste event intercepted");
+
+            return {
+                mcqScore,
+                textScore,
+                proctoringScore,
+                finalScore,
+                tier,
+                proctorFlags
+            };
+        };
+
         const App = () => {
             const [isMenuOpen, setIsMenuOpen] = useState(false);
             const [showQuizModal, setShowQuizModal] = useState(false);
@@ -86,17 +173,46 @@
             const [quizStep, setQuizStep] = useState(1);
             const [answers, setAnswers] = useState([]);
 
+            // Assessment & Proctoring State
+            const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+            const [careerPayload, setCareerPayload] = useState(null);
+            const [tabSwitchCount, setTabSwitchCount] = useState(0);
+            const [pasteAttempted, setPasteAttempted] = useState(false);
+            const [assessmentStep, setAssessmentStep] = useState(0);
+            const [assessmentAnswers, setAssessmentAnswers] = useState({});
+
             const aptSkolaUrl = "https://aptskola.com";
             const link499 = "https://nxtcue.edumilestones.com/login/suitability";
             const linkPremium = "https://careertest.edumilestones.com/student-dashboard/suitability-registration/login/MzA1Nw==/as11-as12-as13-as14-vas341-hms341-as204-as16";
 
             useEffect(() => {
-                if (showQuizModal) {
+                if (showAssessmentModal) {
+                    document.title = "Candidate Assessment | Foviz Careers";
+                } else if (showQuizModal) {
                     document.title = "Discover Your Path | Foviz Career Quiz";
                 } else {
                     document.title = "Foviz | Home of Apt Skola | Scientific School Board Selection";
                 }
-            }, [showQuizModal]);
+            }, [showQuizModal, showAssessmentModal]);
+
+            // Proctoring window blur tracker
+            useEffect(() => {
+                if (showAssessmentModal) {
+                    const handleBlur = () => {
+                        setTabSwitchCount(prev => prev + 1);
+                    };
+                    window.addEventListener('blur', handleBlur);
+                    return () => {
+                        window.removeEventListener('blur', handleBlur);
+                    };
+                } else {
+                    // Reset on close
+                    setTabSwitchCount(0);
+                    setPasteAttempted(false);
+                    setAssessmentStep(0);
+                    setAssessmentAnswers({});
+                }
+            }, [showAssessmentModal]);
 
             useEffect(() => {
                 const params = new URLSearchParams(window.location.search);
@@ -148,17 +264,28 @@
                             base64Data = await readAsBase64(file);
                         }
 
-                        payload = {
+                        const currentRole = formData.get("role");
+                        const initialPayload = {
                             formName: formName,
                             name: formData.get("name"),
                             phone: formData.get("phone"),
-                            role: formData.get("role"),
+                            role: currentRole,
                             linkedin: formData.get("linkedin") || "",
                             whyFit: formData.get("whyFit"),
                             resumeData: base64Data,
                             resumeName: fileName,
                             resumeType: fileType
                         };
+
+                        if (currentRole === "BD Intern" || currentRole === "Management Trainee") {
+                            setCareerPayload(initialPayload);
+                            setShowCareerModal(false);
+                            setShowAssessmentModal(true);
+                            setIsSubmitting(false);
+                            return; // Stop submission here; proceed to assessment modal
+                        }
+
+                        payload = initialPayload;
                     } else if (formName === "discovery-call") {
                         payload = {
                             formName: formName,
@@ -203,6 +330,49 @@
                 } finally {
                     setIsSubmitting(false);
                 }
+            };
+
+            const submitAssessment = (answers) => {
+                setIsSubmitting(true);
+                const scoreResult = calculateCandidateScore(answers, tabSwitchCount, pasteAttempted);
+                
+                const finalPayload = {
+                    ...careerPayload,
+                    calculatedScore: scoreResult.finalScore,
+                    candidateTier: scoreResult.tier,
+                    tabSwitchCount: tabSwitchCount,
+                    proctorFlags: JSON.stringify(scoreResult.proctorFlags),
+                    q1: answers.q1 || "",
+                    q2: answers.q2 || "",
+                    q3: answers.q3 || "",
+                    q4: answers.q4 || "",
+                    q5: answers.q5 || "",
+                    q6: answers.q6 || "",
+                    q7: answers.q7 || "",
+                    q8: answers.q8 || "",
+                    q9: answers.q9 || "",
+                    q10: answers.q10 || ""
+                };
+
+                // Close modal and stop loading immediately
+                setShowAssessmentModal(false);
+                setIsSubmitting(false);
+
+                // Show alert right away
+                alert("Application submitted! Our recruitment team will review your profile and reach out within 3 business days.");
+
+                // Fire request in the background with keepalive
+                fetch(googleScriptUrl, {
+                    method: "POST",
+                    mode: "no-cors",
+                    keepalive: true,
+                    headers: {
+                        "Content-Type": "text/plain"
+                    },
+                    body: JSON.stringify(finalPayload)
+                }).catch((error) => {
+                    console.error("Google Sheets Submission Error (Background):", error);
+                });
             };
 
             const startQuiz = () => {
@@ -480,7 +650,13 @@
                                     
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1 text-left">Attach Resume (PDF / Word)</label>
-                                        <input type="file" name="resume" accept=".pdf,.doc,.docx" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium text-slate-500 text-left" required />
+                                        <input 
+                                            type="file" 
+                                            name="resume" 
+                                            accept=".pdf,.doc,.docx" 
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-bold text-slate-500 text-left file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-950 file:text-white hover:file:bg-indigo-900 cursor-pointer file:transition-all" 
+                                            required 
+                                        />
                                     </div>
                                     
                                     <textarea name="whyFit" placeholder="Why are you a good fit for this role?" rows="4" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required></textarea>
@@ -493,6 +669,258 @@
                                         {isSubmitting ? "Submitting..." : "Submit Application"}
                                     </button>
                                 </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Assessment Modal */}
+                    {showAssessmentModal && (
+                        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-3xl rounded-[32px] p-8 lg:p-10 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+                                <button onClick={() => {
+                                    if(confirm("Are you sure you want to exit? Your progress and test attempt will be lost.")) {
+                                        setShowAssessmentModal(false);
+                                    }
+                                }} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-indigo-950 transition-colors">
+                                    <Icon name="x" />
+                                </button>
+
+                                {/* Notice: Answers are screened... */}
+                                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 text-orange-800 text-sm font-semibold flex items-start gap-3">
+                                    <Icon name="alert-triangle" className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                                    <span>Notice: Answers are screened using semantic checks and proctoring metrics. AI-generated text or copy-pasting will result in instant disqualification.</span>
+                                </div>
+
+                                {/* Warning banner if tabSwitchCount > 2 */}
+                                {tabSwitchCount > 2 && (
+                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 text-red-800 text-sm font-bold flex items-start gap-3 animate-pulse">
+                                        <Icon name="alert-octagon" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                        <span>Warning: Multiple tab switches/window blurs detected ({tabSwitchCount} times). This test attempt has been flagged for proctoring review.</span>
+                                    </div>
+                                )}
+
+                                {assessmentStep === 0 && (
+                                    <div className="space-y-6">
+                                        <div className="text-center">
+                                            <h3 className="text-3xl font-black text-indigo-950">Candidate Assessment</h3>
+                                            <p className="text-slate-500 mt-2">For: {careerPayload?.role || "Business Development Position"}</p>
+                                        </div>
+                                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
+                                            <h4 className="font-bold text-indigo-950 text-lg">Test Rules & Guidelines:</h4>
+                                            <ul className="list-disc pl-5 text-sm text-slate-600 space-y-2">
+                                                <li>This test consists of 10 questions. You will complete them one-by-one.</li>
+                                                <li>Selecting an option in multiple-choice questions will automatically transition you to the next question.</li>
+                                                <li><strong>Proctoring:</strong> Leaving this window or switching tabs will be tracked. If you leave this window more than 2 times, your score will be heavily penalized.</li>
+                                                <li><strong>Anti-Paste:</strong> Copying and pasting is disabled. You must type out all open text answers manually.</li>
+                                                <li>Your answers will be graded by our scoring engine in real-time.</li>
+                                            </ul>
+                                        </div>
+                                        <button 
+                                            onClick={() => setAssessmentStep(1)} 
+                                            className="w-full bg-indigo-950 text-white py-5 rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-900 transition-all"
+                                        >
+                                            Start Assessment
+                                        </button>
+                                    </div>
+                                )}
+
+                                {assessmentStep >= 1 && assessmentStep <= 10 && (() => {
+                                    const handleMcqSelect = (questionId, optionKey) => {
+                                        setAssessmentAnswers(prev => ({ ...prev, [questionId]: optionKey }));
+                                        setTimeout(() => {
+                                            setAssessmentStep(prev => prev + 1);
+                                        }, 250);
+                                    };
+
+                                    // Define questions
+                                    const questionsData = {
+                                        1: {
+                                            section: "Section 1: Resilience & Patience",
+                                            desc: "Dealing with persistent outreach and follow-ups.",
+                                            type: "mcq",
+                                            question: "1. You have followed up three times with a school Principal regarding the Apt Skola board suitability analysis but haven't received any response. What is your next step?",
+                                            options: [
+                                                { key: 'A', text: 'Visit the school in person during public hours, introduce yourself to the receptionist/coordinator, and request a 5-minute meeting or identify the best time to reach the Principal.' },
+                                                { key: 'B', text: 'Continue to call the Principal\'s mobile number multiple times a day until they answer.' },
+                                                { key: 'C', text: 'Send a formal email asking if they are uninterested so you can remove them from your list.' },
+                                                { key: 'D', text: 'Mark the lead as dead and immediately stop all outreach efforts.' }
+                                            ]
+                                        },
+                                        2: {
+                                            section: "Section 1: Resilience & Patience",
+                                            desc: "Handling objections and client rejections.",
+                                            type: "mcq",
+                                            question: "2. A school Principal rejects your pitch, stating they already have a career counselor and do not need Foviz. How do you handle this?",
+                                            options: [
+                                                { key: 'A', text: 'Politely acknowledge their current solution, ask what gaps they still face, and offer to share a sample of our unique 5D diagnostic report for comparison.' },
+                                                { key: 'B', text: 'Argue that their current counselor lacks scientific 5D depth and they are doing a disservice to students.' },
+                                                { key: 'C', text: 'Offer to discount the Elite package by 50% immediately to win them over.' },
+                                                { key: 'D', text: 'Accept the rejection immediately and exit the call.' }
+                                            ]
+                                        },
+                                        3: {
+                                            section: "Section 2: Hard Work vs. Smart Work",
+                                            desc: "Time management and sales productivity.",
+                                            type: "mcq",
+                                            question: "3. You have an 8-hour workday. How would you plan your time to maximize school closures for Apt Skola?",
+                                            options: [
+                                                { key: 'A', text: 'Spend the entire day making cold calls to a list of schools found on Google.' },
+                                                { key: 'B', text: 'Research and pre-qualify 5 high-potential schools, schedule 2 in-person visits, and spend the remaining time following up on warm leads.' },
+                                                { key: 'C', text: 'Spend 6 hours building a highly customized presentation slide deck and 2 hours on administrative tasks.' },
+                                                { key: 'D', text: 'Wait at your desk for inbound leads or referrals to come through the website.' }
+                                            ]
+                                        },
+                                        4: {
+                                            section: "Section 2: Hard Work vs. Smart Work",
+                                            desc: "Productivity, planning, and long-term goal setting.",
+                                            type: "text",
+                                            question: "4. Describe a goal you worked toward for 6+ months without immediate reward. What kept you driven daily? (Min 30 words)"
+                                        },
+                                        5: {
+                                            section: "Section 3: Aspirations & Drive",
+                                            desc: "Inner motivation and career objectives.",
+                                            type: "mcq",
+                                            question: "5. What is your primary motivation for choosing a target-driven sales and business development role?",
+                                            options: [
+                                                { key: 'A', text: 'The opportunity to control my earnings through uncapped performance commissions and fast-track my career growth.' },
+                                                { key: 'B', text: 'Having a steady job with predictable hours and comfortable routine tasks.' },
+                                                { key: 'C', text: 'Traveling to different schools and networking without the pressure of hard sales targets.' },
+                                                { key: 'D', text: 'Helping students find their career path, with commission as a secondary benefit.' }
+                                            ]
+                                        },
+                                        6: {
+                                            section: "Section 3: Aspirations & Drive",
+                                            desc: "Bootstrapping sales and generating pipeline with zero budget.",
+                                            type: "text",
+                                            question: "6. With zero ad budget, how would you generate your first 15 qualified school leads? (Min 30 words)"
+                                        },
+                                        7: {
+                                            section: "Section 4: B2B Sales Aptitude",
+                                            desc: "Handling value and pricing objections.",
+                                            type: "mcq",
+                                            question: "7. A Principal says the ₹2,499 Foviz Elite package is too expensive for their students. How do you respond?",
+                                            options: [
+                                                { key: 'A', text: 'Highlight that ₹2,499 is a one-time investment in a 15-year career roadmap that prevents costly educational mistakes, and offer custom bulk school pricing options.' },
+                                                { key: 'B', text: 'Apologize for the high price and ask if they can recommend any wealthier students.' },
+                                                { key: 'C', text: 'Immediately suggest the ₹499 Starter package instead, to make a quick sale.' },
+                                                { key: 'D', text: 'Tell them that quality career guidance cannot be cheap and walk away if they can\'t afford it.' }
+                                            ]
+                                        },
+                                        8: {
+                                            section: "Section 4: B2B Sales Aptitude",
+                                            desc: "Executing discovery calls with school administrators.",
+                                            type: "mcq",
+                                            question: "8. During a 15-minute discovery call with a school Principal, what should be your main objective?",
+                                            options: [
+                                                { key: 'A', text: 'Pitch every single feature of the 36-page Foviz Elite report.' },
+                                                { key: 'B', text: 'Understand the school\'s specific challenges regarding student career stream selection and parent satisfaction.' },
+                                                { key: 'C', text: 'Negotiate pricing, payment splits, and contract terms.' },
+                                                { key: 'D', text: 'Share your own achievements and background in sales.' }
+                                            ]
+                                        },
+                                        9: {
+                                            section: "Section 4: B2B Sales Aptitude",
+                                            desc: "Estimating conversion funnels in B2B transactions.",
+                                            type: "mcq",
+                                            question: "9. If your target is to close 3 school-wide Apt Skola sessions this month, what size pipeline is required?",
+                                            options: [
+                                                { key: 'A', text: '3 schools, since you plan to pitch only to interested schools.' },
+                                                { key: 'B', text: '30-45 qualified school leads, assuming a realistic B2B conversion rate of 7-10%.' },
+                                                { key: 'C', text: '10 schools, assuming a standard 30% closing rate.' },
+                                                { key: 'D', text: '100+ unverified email addresses scraped from the web.' }
+                                            ]
+                                        },
+                                        10: {
+                                            section: "Section 4: B2B Sales Aptitude",
+                                            desc: "Managing sales recovery and target deficits.",
+                                            type: "text",
+                                            question: "10. If you fall behind target by Week 3, what exact steps will you take in Week 4? (Min 30 words)"
+                                        }
+                                    };
+
+                                    const q = questionsData[assessmentStep];
+                                    const currentAns = assessmentAnswers[`q${assessmentStep}`] || "";
+
+                                    return (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${(assessmentStep / 10) * 100}%` }}></div>
+                                                </div>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question {assessmentStep}/10</span>
+                                            </div>
+
+
+
+                                            {q.type === "mcq" ? (
+                                                <div className="space-y-4 text-left">
+                                                    <label className="text-base font-bold text-indigo-950 block">{q.question}</label>
+                                                    <div className="grid gap-3">
+                                                        {q.options.map(opt => (
+                                                            <button 
+                                                                key={opt.key}
+                                                                type="button"
+                                                                onClick={() => handleMcqSelect(`q${assessmentStep}`, opt.key)}
+                                                                className={`text-left p-4 rounded-xl border-2 font-semibold transition-all flex items-start gap-3 ${currentAns === opt.key ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950' : 'border-slate-100 hover:border-indigo-600/30 text-slate-600'}`}
+                                                            >
+                                                                <span className="font-bold uppercase bg-slate-200 text-slate-700 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-sm mt-0.5">{opt.key}</span>
+                                                                <span>{opt.text}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2 text-left">
+                                                    <label className="text-base font-bold text-indigo-950 block">{q.question}</label>
+                                                    <textarea 
+                                                        rows="4" 
+                                                        value={currentAns}
+                                                        onPaste={(e) => { 
+                                                            e.preventDefault(); 
+                                                            setPasteAttempted(true);
+                                                            alert("Pasting is disabled. Please type your answer manually."); 
+                                                        }}
+                                                        onChange={(e) => setAssessmentAnswers(prev => ({ ...prev, [`q${assessmentStep}`]: e.target.value }))}
+                                                        placeholder="Write your response here manually..."
+                                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium animate-none"
+                                                    ></textarea>
+                                                    <div className="text-right text-xs font-semibold text-slate-400">
+                                                        Word count: {(currentAns.trim().split(/\s+/).filter(w => w.length > 0).length)} (Need 30+)
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between gap-4 mt-8 pt-4 border-t border-slate-100">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setAssessmentStep(prev => prev - 1)}
+                                                    className="px-6 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl text-sm transition-all"
+                                                >
+                                                    Back
+                                                </button>
+                                                {q.type === "text" && (
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!currentAns.trim()) {
+                                                                alert("Please answer the question before proceeding.");
+                                                                return;
+                                                            }
+                                                            if (assessmentStep === 10) {
+                                                                submitAssessment(assessmentAnswers);
+                                                            } else {
+                                                                setAssessmentStep(prev => prev + 1);
+                                                            }
+                                                        }}
+                                                        className="px-8 py-3 bg-indigo-950 text-white font-bold rounded-xl text-sm hover:bg-indigo-900 transition-all ml-auto animate-none"
+                                                    >
+                                                        {assessmentStep === 10 ? "Submit Application" : "Continue"}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
@@ -994,5 +1422,18 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <!--Start of Tawk.to Script-->
+    <script type="text/javascript">
+    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    (function(){
+    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+    s1.async=true;
+    s1.src='https://embed.tawk.to/6a7fc0d25981892f72ddd1b7/1k01jnupa';
+    s1.charset='UTF-8';
+    s1.setAttribute('crossorigin','*');
+    s0.parentNode.insertBefore(s1,s0);
+    })();
+    </script>
+    <!--End of Tawk.to Script-->
 </body>
 </html>
