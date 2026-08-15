@@ -63,12 +63,19 @@
         const supabaseKey = localStorage.getItem('FOV_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXRya2V1Z3BxeGRoc2N1YnVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MDkzMjYsImV4cCI6MjEwMjM4NTMyNn0.yvsRmrkEI21Y0UwhB__I0Vv2iLryXVJ2xhVRC2uackg';
         
         let supabase = null;
+        window.supabaseInitError = null;
         try {
             if (supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+                if (!window.supabase) {
+                    throw new Error("window.supabase is undefined. The Supabase CDN script failed to load. Please check your network connection, DNS, or ad blocker.");
+                }
                 supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } else {
+                window.supabaseInitError = `Credentials are not configured correctly in file or storage. URL: ${supabaseUrl.substring(0, 15)}..., Key prefix: ${supabaseKey.substring(0, 15)}...`;
             }
         } catch (e) {
             console.error("Failed to initialize Supabase:", e);
+            window.supabaseInitError = e.message || String(e);
         }
 
         const Icon = ({ name, className = "w-6 h-6", ...props }) => {
@@ -1504,7 +1511,7 @@
                     // The password (KUNTA) is evaluated in the Supabase backend.
                     // It is NEVER hardcoded in the frontend client source code, so it is 100% safe from inspection.
                     if (!supabase) {
-                        throw new Error("Supabase client is not initialized. This usually happens when the Supabase Anon Key is invalid or malformed (it must start with 'eyJ').");
+                        throw new Error("Supabase client is not initialized. Error: " + (window.supabaseInitError || "Unknown connection error. Try clicking 'Reset API Keys'."));
                     }
                     const { error } = await supabase.auth.signInWithPassword({ 
                         email: 'admin@foviz.in', 
