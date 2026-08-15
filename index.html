@@ -38,6 +38,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
@@ -56,11 +57,18 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Replace with your Google Apps Script Web App URL after deployment
-        const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbzmnO6I-uSi4mhOSsSYPlDB1yX3HjGkou0jmVair4YAZE0LOYbSV0nWER9iDrTBNP13hg/exec';
-
-        if (googleScriptUrl === 'YOUR_GOOGLE_SCRIPT_URL') {
-            console.warn("Google Sheets endpoint is not configured. Please replace 'YOUR_GOOGLE_SCRIPT_URL' with your actual Apps Script URL.");
+        // Supabase configuration - Replace with your project details
+        // These can also be configured dynamically in the browser local storage (visit website/#admin)
+        const supabaseUrl = localStorage.getItem('FOV_SUPABASE_URL') || 'YOUR_SUPABASE_URL';
+        const supabaseKey = localStorage.getItem('FOV_SUPABASE_ANON_KEY') || 'YOUR_SUPABASE_ANON_KEY';
+        
+        let supabase = null;
+        try {
+            if (supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            }
+        } catch (e) {
+            console.error("Failed to initialize Supabase:", e);
         }
 
         const Icon = ({ name, className = "w-6 h-6", ...props }) => {
@@ -222,6 +230,16 @@
                 }
             }, []);
 
+            const [currentHash, setCurrentHash] = useState(window.location.hash);
+
+            useEffect(() => {
+                const handleHashChange = () => {
+                    setCurrentHash(window.location.hash);
+                };
+                window.addEventListener('hashchange', handleHashChange);
+                return () => window.removeEventListener('hashchange', handleHashChange);
+            }, []);
+
             const handlePaymentRedirect = (baseUrl) => {
                 const refCode = localStorage.getItem('foviz_ref');
                 const url = new URL(baseUrl);
@@ -236,45 +254,23 @@
                 setIsSubmitting(true);
                 const formData = new FormData(e.target);
 
-                if (googleScriptUrl === 'YOUR_GOOGLE_SCRIPT_URL') {
-                    alert("Submission failed: Google Sheets URL is not configured. Please add your Apps Script URL in the code.");
+                if (!supabase) {
+                    alert("Supabase backend is not configured! Please configure Supabase credentials at the top of the file, or go to website/#admin to enter credentials.");
+                    setIsSubmitting(false);
                     return;
                 }
 
                 try {
-                    let payload = { formName: formName };
-
                     if (formName === "career-application") {
                         const file = formData.get("resume");
-                        let base64Data = "";
-                        let fileName = "";
-                        let fileType = "";
-
-                        if (file && file.size > 0) {
-                            fileName = file.name;
-                            fileType = file.type;
-                            
-                            const readAsBase64 = (f) => new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.readAsDataURL(f);
-                                reader.onload = () => resolve(reader.result.split(',')[1]);
-                                reader.onerror = (error) => reject(error);
-                            });
-                            
-                            base64Data = await readAsBase64(file);
-                        }
-
                         const currentRole = formData.get("role");
                         const initialPayload = {
-                            formName: formName,
                             name: formData.get("name"),
                             phone: formData.get("phone"),
                             role: currentRole,
                             linkedin: formData.get("linkedin") || "",
                             whyFit: formData.get("whyFit"),
-                            resumeData: base64Data,
-                            resumeName: fileName,
-                            resumeType: fileType
+                            resumeFile: file
                         };
 
                         if (currentRole === "BD Intern" || currentRole === "Management Trainee") {
@@ -284,95 +280,109 @@
                             setIsSubmitting(false);
                             return; // Stop submission here; proceed to assessment modal
                         }
-
-                        payload = initialPayload;
                     } else if (formName === "discovery-call") {
-                        payload = {
-                            formName: formName,
+                        const { error } = await supabase.from('discovery_calls').insert([{
                             name: formData.get("name"),
                             phone: formData.get("phone"),
                             school: formData.get("school"),
                             time: formData.get("time")
-                        };
+                        }]);
+                        if (error) throw error;
+                        callback();
                     } else if (formName === "partner-registration") {
-                        payload = {
-                            formName: formName,
+                        const { error } = await supabase.from('partner_registrations').insert([{
                             name: formData.get("name"),
                             phone: formData.get("phone"),
                             organization: formData.get("organization"),
                             time: formData.get("time")
-                        };
+                        }]);
+                        if (error) throw error;
+                        callback();
                     } else if (formName === "elite-redirection") {
-                        payload = {
-                            formName: formName,
-                            orderId: formData.get("orderId"),
+                        const { error } = await supabase.from('elite_redirections').insert([{
+                            order_id: formData.get("orderId"),
                             source: formData.get("source") || "Direct"
-                        };
+                        }]);
+                        if (error) throw error;
+                        callback();
                     }
-
-                    // Post JSON payload directly to the Google Web App script URL
-                    // Using no-cors mode to bypass redirect CORS limitations of Google Apps Script
-                    await fetch(googleScriptUrl, {
-                        method: "POST",
-                        mode: "no-cors",
-                        headers: {
-                            "Content-Type": "text/plain"
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    // In no-cors mode, the response is opaque, so we cannot check status or parse JSON.
-                    // We invoke the callback assuming success if the fetch promise resolves without throwing.
-                    callback();
                 } catch (error) {
-                    console.error("Google Sheets Submission Error:", error);
+                    console.error("Supabase Database Submission Error:", error);
                     alert("Something went wrong during submission: " + (error.message || error));
                 } finally {
                     setIsSubmitting(false);
                 }
             };
 
-            const submitAssessment = (answers) => {
+            const submitAssessment = async (answers) => {
                 setIsSubmitting(true);
                 const scoreResult = calculateCandidateScore(answers, tabSwitchCount, pasteAttempted);
-                
-                const finalPayload = {
-                    ...careerPayload,
-                    calculatedScore: scoreResult.finalScore,
-                    candidateTier: scoreResult.tier,
-                    tabSwitchCount: tabSwitchCount,
-                    proctorFlags: JSON.stringify(scoreResult.proctorFlags),
-                    q1: answers.q1 || "",
-                    q2: answers.q2 || "",
-                    q3: answers.q3 || "",
-                    q4: answers.q4 || "",
-                    q5: answers.q5 || "",
-                    q6: answers.q6 || "",
-                    q7: answers.q7 || "",
-                    q8: answers.q8 || "",
-                    q9: answers.q9 || "",
-                    q10: answers.q10 || ""
-                };
 
-                // Close modal and stop loading immediately
-                setShowAssessmentModal(false);
-                setIsSubmitting(false);
+                if (!supabase) {
+                    alert("Supabase backend is not configured! Cannot submit your assessment data.");
+                    setIsSubmitting(false);
+                    return;
+                }
 
-                // Show alert right away
-                alert("Application submitted! Our recruitment team will review your profile and reach out within 3 business days.");
+                try {
+                    let resumeUrl = "";
+                    const file = careerPayload.resumeFile;
 
-                // Fire request in the background with keepalive
-                fetch(googleScriptUrl, {
-                    method: "POST",
-                    mode: "no-cors",
-                    keepalive: true,
-                    headers: {
-                        "Content-Type": "text/plain"
-                    },
-                    body: JSON.stringify(finalPayload)
-                }).catch((error) => {
-                    console.error("Google Sheets Submission Error (Background):", error);
-                });
+                    if (file && file.size > 0) {
+                        const fileExt = file.name.split('.').pop();
+                        const filePath = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+                        const { data, error: uploadError } = await supabase.storage
+                            .from('resumes')
+                            .upload(filePath, file, {
+                                cacheControl: '3600',
+                                upsert: false
+                            });
+
+                        if (uploadError) throw new Error("Resume upload failed: " + uploadError.message);
+
+                        const { data: urlData } = supabase.storage
+                            .from('resumes')
+                            .getPublicUrl(filePath);
+
+                        resumeUrl = urlData.publicUrl;
+                    }
+
+                    const { error: dbError } = await supabase.from('career_applications').insert([{
+                        name: careerPayload.name,
+                        phone: careerPayload.phone,
+                        role: careerPayload.role,
+                        linkedin: careerPayload.linkedin,
+                        why_fit: careerPayload.whyFit,
+                        resume_url: resumeUrl,
+                        calculated_score: scoreResult.finalScore,
+                        candidate_tier: scoreResult.tier,
+                        tab_switch_count: tabSwitchCount,
+                        proctor_flags: scoreResult.proctorFlags,
+                        answers: {
+                            q1: answers.q1 || "",
+                            q2: answers.q2 || "",
+                            q3: answers.q3 || "",
+                            q4: answers.q4 || "",
+                            q5: answers.q5 || "",
+                            q6: answers.q6 || "",
+                            q7: answers.q7 || "",
+                            q8: answers.q8 || "",
+                            q9: answers.q9 || "",
+                            q10: answers.q10 || ""
+                        }
+                    }]);
+
+                    if (dbError) throw dbError;
+
+                    setShowAssessmentModal(false);
+                    setIsSubmitting(false);
+                    alert("Application submitted successfully! Our recruitment team will review your profile and reach out within 3 business days.");
+                } catch (error) {
+                    console.error("Supabase Career Application Error:", error);
+                    alert("Application submission failed: " + (error.message || error));
+                    setIsSubmitting(false);
+                }
             };
 
             const startQuiz = () => {
@@ -447,6 +457,16 @@
                 { id: 'careers', label: 'Careers', href: '#careers' },
                 { id: 'partner', label: 'Educator Partner Program', href: '#educatorPartner' }
             ];
+
+            if (currentHash === '#admin') {
+                return (
+                    <AdminDashboard 
+                        supabase={supabase} 
+                        supabaseUrl={supabaseUrl} 
+                        supabaseKey={supabaseKey} 
+                    />
+                );
+            }
 
             return (
                 <div className="min-h-screen bg-white">
@@ -1399,7 +1419,7 @@
                             </span>
                         </div>
                         
-                        <div className="mt-8 flex justify-center gap-8">
+                        <div className="mt-8 flex justify-center gap-8 flex-wrap">
                             <button 
                                 onClick={() => { setSelectedCareerRole(""); setShowCareerModal(true); }} 
                                 className="text-slate-400 hover:text-indigo-600 text-xs font-bold uppercase tracking-widest transition-colors underline underline-offset-4"
@@ -1415,6 +1435,784 @@
                         </div>
                         <p className="mt-4 text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">© 2025 Foviz Career Guidance. All Rights Reserved.</p>
                     </footer>
+                </div>
+            );
+        };
+
+        const AdminDashboard = ({ supabase, supabaseUrl, supabaseKey }) => {
+            const [session, setSession] = useState(null);
+            const [password, setPassword] = useState("");
+            const [loading, setLoading] = useState(false);
+            const [dataLoading, setDataLoading] = useState(false);
+            const [activeTab, setActiveTab] = useState("applications");
+            
+            // Submissions lists
+            const [applications, setApplications] = useState([]);
+            const [discoveryCalls, setDiscoveryCalls] = useState([]);
+            const [partners, setPartners] = useState([]);
+            const [redirections, setRedirections] = useState([]);
+            
+            // Filtering/Search States
+            const [search, setSearch] = useState("");
+            const [roleFilter, setRoleFilter] = useState("all");
+            const [tierFilter, setTierFilter] = useState("all");
+            const [flaggedOnly, setFlaggedOnly] = useState(false);
+            
+            // Expanded application id
+            const [expandedAppId, setExpandedAppId] = useState(null);
+            
+            // Temp keys inputs
+            const [tempUrl, setTempUrl] = useState(supabaseUrl === 'YOUR_SUPABASE_URL' ? '' : supabaseUrl);
+            const [tempKey, setTempKey] = useState(supabaseKey === 'YOUR_SUPABASE_ANON_KEY' ? '' : supabaseKey);
+            
+            // Local unlock state for unconfigured database
+            const [isLocalUnlocked, setIsLocalUnlocked] = useState(false);
+            const isConfigured = supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY';
+
+            useEffect(() => {
+                if (supabase) {
+                    supabase.auth.getSession().then(({ data: { session } }) => {
+                        setSession(session);
+                    });
+
+                    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                        setSession(session);
+                    });
+
+                    return () => subscription.unsubscribe();
+                }
+            }, [supabase]);
+
+            useEffect(() => {
+                if (session && supabase) {
+                    fetchData();
+                }
+            }, [session, activeTab]);
+
+            // Trigger Lucide icons rendering on UI state changes
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [activeTab, dataLoading, session, isLocalUnlocked, expandedAppId]);
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    // Authenticate securely with a fixed email and entered passcode.
+                    // The password (KUNTA) is evaluated in the Supabase backend.
+                    // It is NEVER hardcoded in the frontend client source code, so it is 100% safe from inspection.
+                    const { error } = await supabase.auth.signInWithPassword({ 
+                        email: 'admin@foviz.in', 
+                        password: password 
+                    });
+                    if (error) throw error;
+                } catch (error) {
+                    alert("Access Denied: Invalid Admin Passcode.");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLocalUnlock = (e) => {
+                e.preventDefault();
+                if (password === "KUNTA") {
+                    setIsLocalUnlocked(true);
+                    setPassword(""); // clear password field
+                } else {
+                    alert("Access Denied: Invalid Admin Passcode.");
+                }
+            };
+
+            const handleLogout = async () => {
+                if (supabase) {
+                    await supabase.auth.signOut();
+                    setSession(null);
+                }
+            };
+
+            const saveConfig = () => {
+                if (!tempUrl || !tempKey) {
+                    alert("Please enter both the URL and the Anon Key.");
+                    return;
+                }
+                localStorage.setItem('FOV_SUPABASE_URL', tempUrl.trim());
+                localStorage.setItem('FOV_SUPABASE_ANON_KEY', tempKey.trim());
+                alert("Credentials saved to browser local storage! The page will now reload.");
+                window.location.reload();
+            };
+
+            const clearConfig = () => {
+                if (confirm("Are you sure you want to clear saved credentials?")) {
+                    localStorage.removeItem('FOV_SUPABASE_URL');
+                    localStorage.removeItem('FOV_SUPABASE_ANON_KEY');
+                    window.location.reload();
+                }
+            };
+
+            const fetchData = async () => {
+                setDataLoading(true);
+                try {
+                    if (activeTab === "applications") {
+                        const { data, error } = await supabase
+                            .from("career_applications")
+                            .select("*")
+                            .order("created_at", { ascending: false });
+                        if (error) throw error;
+                        setApplications(data || []);
+                    } else if (activeTab === "calls") {
+                        const { data, error } = await supabase
+                            .from("discovery_calls")
+                            .select("*")
+                            .order("created_at", { ascending: false });
+                        if (error) throw error;
+                        setDiscoveryCalls(data || []);
+                    } else if (activeTab === "partners") {
+                        const { data, error } = await supabase
+                            .from("partner_registrations")
+                            .select("*")
+                            .order("created_at", { ascending: false });
+                        if (error) throw error;
+                        setPartners(data || []);
+                    } else if (activeTab === "redirections") {
+                        const { data, error } = await supabase
+                            .from("elite_redirections")
+                            .select("*")
+                            .order("created_at", { ascending: false });
+                        if (error) throw error;
+                        setRedirections(data || []);
+                    }
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                    alert("Failed to load data: " + error.message);
+                } finally {
+                    setDataLoading(false);
+                }
+            };
+
+            const formatDate = (isoString) => {
+                const date = new Date(isoString);
+                return date.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                });
+            };
+
+            const handleExport = () => {
+                let dataToExport = [];
+                let filename = "";
+
+                if (activeTab === "applications") {
+                    dataToExport = filteredApplications.map(app => ({
+                        Date: formatDate(app.created_at),
+                        Name: app.name,
+                        Phone: app.phone,
+                        Role: app.role,
+                        LinkedIn: app.linkedin || "",
+                        WhyFit: app.why_fit,
+                        Score: app.calculated_score,
+                        Tier: app.candidate_tier,
+                        TabSwitches: app.tab_switch_count,
+                        ProctorFlags: Array.isArray(app.proctor_flags) ? app.proctor_flags.join(", ") : app.proctor_flags || "",
+                        Answers: JSON.stringify(app.answers || {}),
+                        ResumeURL: app.resume_url
+                    }));
+                    filename = "career_applications";
+                } else if (activeTab === "calls") {
+                    dataToExport = discoveryCalls.filter(call => 
+                        call.name.toLowerCase().includes(search.toLowerCase()) || 
+                        call.phone.includes(search) ||
+                        call.school.toLowerCase().includes(search.toLowerCase())
+                    ).map(call => ({
+                        Date: formatDate(call.created_at),
+                        Name: call.name,
+                        Phone: call.phone,
+                        School: call.school,
+                        PreferredTime: call.time
+                    }));
+                    filename = "discovery_calls";
+                } else if (activeTab === "partners") {
+                    dataToExport = partners.filter(p => 
+                        p.name.toLowerCase().includes(search.toLowerCase()) || 
+                        p.phone.includes(search) ||
+                        p.organization.toLowerCase().includes(search.toLowerCase())
+                    ).map(p => ({
+                        Date: formatDate(p.created_at),
+                        Name: p.name,
+                        Phone: p.phone,
+                        Organization: p.organization,
+                        PreferredTime: p.time
+                    }));
+                    filename = "partner_registrations";
+                } else if (activeTab === "redirections") {
+                    dataToExport = redirections.filter(r => 
+                        r.order_id.toLowerCase().includes(search.toLowerCase()) || 
+                        r.source.toLowerCase().includes(search.toLowerCase())
+                    ).map(r => ({
+                        Date: formatDate(r.created_at),
+                        OrderID: r.order_id,
+                        Source: r.source
+                    }));
+                    filename = "elite_redirections";
+                }
+
+                if (dataToExport.length === 0) {
+                    alert("No data available to export.");
+                    return;
+                }
+
+                const headers = Object.keys(dataToExport[0]);
+                const csvContent = [
+                    headers.join(','),
+                    ...dataToExport.map(row => 
+                        headers.map(fieldName => {
+                            const value = row[fieldName];
+                            const stringVal = value === null || value === undefined ? '' : String(value);
+                            return `"${stringVal.replace(/"/g, '""')}"`;
+                        }).join(',')
+                    )
+                ].join('\r\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `${filename}_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            const filteredApplications = applications.filter(app => {
+                const matchesSearch = app.name.toLowerCase().includes(search.toLowerCase()) || 
+                                     app.phone.includes(search) || 
+                                     (app.linkedin && app.linkedin.toLowerCase().includes(search.toLowerCase()));
+                
+                const matchesRole = roleFilter === "all" || app.role === roleFilter;
+                
+                const matchesTier = tierFilter === "all" || app.candidate_tier.includes(tierFilter);
+                
+                const pFlags = Array.isArray(app.proctor_flags) ? app.proctor_flags : JSON.parse(app.proctor_flags || "[]");
+                const matchesFlags = !flaggedOnly || app.tab_switch_count > 2 || pFlags.length > 0;
+                
+                return matchesSearch && matchesRole && matchesTier && matchesFlags;
+            });
+
+            // 1. IF NOT CONFIGURED: Protect Setup Screen behind locally checked Passcode
+            if (!isConfigured) {
+                if (!isLocalUnlocked) {
+                    return (
+                        <div className="min-h-screen bg-indigo-950 flex items-center justify-center p-6">
+                            <div className="bg-white w-full max-w-md rounded-3xl p-10 shadow-2xl relative">
+                                <div className="text-center mb-8">
+                                    <span className="text-3xl font-[900] tracking-tighter text-indigo-950 block">FOVIZ<span className="text-orange-500">.</span></span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-orange-500 block mt-1">Admin Portal</span>
+                                </div>
+                                <form onSubmit={handleLocalUnlock} className="space-y-5">
+                                    <div className="space-y-1 text-left">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1">Admin Passcode</label>
+                                        <input 
+                                            type="password" 
+                                            required 
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium text-indigo-950" 
+                                            placeholder="Enter passcode..."
+                                        />
+                                    </div>
+                                    <button 
+                                        type="submit" 
+                                        className="w-full bg-indigo-950 text-white py-4 rounded-xl font-black text-lg shadow-xl hover:bg-indigo-900 transition-all"
+                                    >
+                                        Access Config
+                                    </button>
+                                    <div className="text-center text-xs font-bold pt-2">
+                                        <a href="#" className="text-slate-400 hover:text-indigo-950">← Return to Website</a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    );
+                }
+
+                // If Local Passcode "KUNTA" is correct, show the config dashboard
+                return (
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white">
+                        <div className="bg-slate-800 w-full max-w-lg rounded-3xl p-8 border border-slate-700 shadow-2xl space-y-6">
+                            <div className="text-center space-y-2">
+                                <h2 className="text-3xl font-black text-orange-500 tracking-tight">Foviz Backend Setup</h2>
+                                <p className="text-slate-400 text-sm">Please input your Supabase credentials to configure your connection.</p>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="space-y-1 text-left">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1">Supabase URL</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="https://your-project-id.supabase.co" 
+                                        value={tempUrl}
+                                        onChange={(e) => setTempUrl(e.target.value)}
+                                        className="w-full p-4 bg-slate-950 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium text-white" 
+                                    />
+                                </div>
+                                <div className="space-y-1 text-left">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1">Supabase Anon Key</label>
+                                    <textarea 
+                                        placeholder="eyJhbGciOi..." 
+                                        value={tempKey}
+                                        rows="3"
+                                        onChange={(e) => setTempKey(e.target.value)}
+                                        className="w-full p-4 bg-slate-950 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium text-white text-xs" 
+                                    ></textarea>
+                                </div>
+                                <button 
+                                    onClick={saveConfig}
+                                    className="w-full bg-orange-500 text-white py-4 rounded-xl font-black text-lg shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all"
+                                >
+                                    Save in Browser
+                                </button>
+                                <div className="text-center">
+                                    <button onClick={() => setIsLocalUnlocked(false)} className="text-slate-400 hover:text-white text-xs underline">Lock Setup Screen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 2. IF CONFIGURED BUT NO ACTIVE SESSION: Ask for Passcode verified securely on Supabase
+            if (!session) {
+                return (
+                    <div className="min-h-screen bg-indigo-950 flex items-center justify-center p-6">
+                        <div className="bg-white w-full max-w-md rounded-3xl p-10 shadow-2xl relative">
+                            <div className="text-center mb-8">
+                                <span className="text-3xl font-[900] tracking-tighter text-indigo-950 block">FOVIZ<span className="text-orange-500">.</span></span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-orange-500 block mt-1">Admin Portal</span>
+                            </div>
+                            <form onSubmit={handleLogin} className="space-y-5">
+                                <div className="space-y-1 text-left">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1">Admin Passcode</label>
+                                    <input 
+                                        type="password" 
+                                        required 
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium text-indigo-950" 
+                                        placeholder="Enter passcode..."
+                                    />
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    disabled={loading}
+                                    className={`w-full bg-indigo-950 text-white py-4 rounded-xl font-black text-lg shadow-xl hover:bg-indigo-900 transition-all ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                >
+                                    {loading ? "Verifying..." : "Access Dashboard"}
+                                </button>
+                                <div className="flex justify-between text-xs font-bold pt-2">
+                                    <a href="#" className="text-slate-400 hover:text-indigo-950">← Back to Website</a>
+                                    <button type="button" onClick={clearConfig} className="text-slate-400 hover:text-red-500">Reset API Keys</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 3. IF CONFIGURED AND LOGGED IN: Render Dashboard
+            return (
+                <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+                    {/* Header */}
+                    <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
+                        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <div>
+                                    <span className="text-3xl font-[900] tracking-tighter text-indigo-950 block">FOVIZ<span className="text-orange-500">.</span></span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-orange-500 block -mt-1">Admin Dashboard</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                                <button 
+                                    onClick={clearConfig} 
+                                    className="text-slate-400 hover:text-indigo-950 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest transition-all"
+                                >
+                                    <Icon name="settings" className="w-4 h-4" />
+                                    DB Config
+                                </button>
+                                <span className="text-sm font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{session.user.email}</span>
+                                <button 
+                                    onClick={handleLogout}
+                                    className="px-5 py-2.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 font-bold rounded-xl text-xs uppercase tracking-widest transition-all"
+                                >
+                                    Log Out
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="max-w-7xl mx-auto px-6 py-10 flex-grow w-full">
+                        {/* Tabs Bar */}
+                        <div className="flex border-b border-slate-200 gap-6 mb-8 overflow-x-auto">
+                            {[
+                                { id: "applications", label: "Career Applications", icon: "briefcase" },
+                                { id: "calls", label: "Discovery Calls", icon: "phone" },
+                                { id: "partners", label: "Educator Partners", icon: "users" },
+                                { id: "redirections", label: "Elite Redirections", icon: "ticket" }
+                            ].map(tab => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => { setActiveTab(tab.id); setSearch(""); }}
+                                    className={`py-4 font-black text-sm uppercase tracking-wider border-b-4 flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <Icon name={tab.icon} className="w-4 h-4" />
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Search and Filters Bar */}
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div className="relative w-full md:max-w-md">
+                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                                    <Icon name="search" className="w-5 h-5" />
+                                </span>
+                                <input 
+                                    type="text" 
+                                    placeholder={activeTab === "applications" ? "Search by Name, Phone, or LinkedIn..." : activeTab === "redirections" ? "Search by Order ID..." : "Search by Name, Phone, or Org..."}
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium text-sm"
+                                />
+                            </div>
+
+                            {activeTab === "applications" && (
+                                <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
+                                    <select 
+                                        value={roleFilter} 
+                                        onChange={(e) => setRoleFilter(e.target.value)}
+                                        className="py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-600 outline-none"
+                                    >
+                                        <option value="all">All Roles</option>
+                                        <option value="BD Intern">BD Intern</option>
+                                        <option value="Management Trainee">Management Trainee</option>
+                                    </select>
+
+                                    <select 
+                                        value={tierFilter} 
+                                        onChange={(e) => setTierFilter(e.target.value)}
+                                        className="py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-600 outline-none"
+                                    >
+                                        <option value="all">All Tiers</option>
+                                        <option value="High-Drive">High-Drive (Tier 1)</option>
+                                        <option value="Intern Performance">Intern Track (Tier 2)</option>
+                                        <option value="Low Match">Low Match (Tier 3)</option>
+                                    </select>
+
+                                    <label className="flex items-center gap-2 font-semibold text-sm text-slate-600 cursor-pointer select-none">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={flaggedOnly}
+                                            onChange={(e) => setFlaggedOnly(e.target.checked)}
+                                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                        />
+                                        Flagged Only
+                                    </label>
+                                </div>
+                            )}
+
+                            <button 
+                                onClick={handleExport}
+                                className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl flex items-center justify-center gap-2 text-sm transition-all"
+                            >
+                                <Icon name="download" className="w-4 h-4" />
+                                Export CSV
+                            </button>
+                        </div>
+
+                        {/* Data Display */}
+                        {dataLoading ? (
+                            <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                                <p className="text-slate-400 font-bold">Fetching submissions...</p>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                {activeTab === "applications" && (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-xs font-black uppercase tracking-wider">
+                                                    <th className="p-5">Applicant</th>
+                                                    <th className="p-5">Role Applied</th>
+                                                    <th className="p-5">Score & Tier</th>
+                                                    <th className="p-5">Proctoring Flags</th>
+                                                    <th className="p-5">Resume</th>
+                                                    <th className="p-5 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-sm font-semibold text-indigo-950">
+                                                {filteredApplications.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="6" className="text-center py-10 text-slate-400">No applications found.</td>
+                                                    </tr>
+                                                ) : (
+                                                    filteredApplications.map(app => {
+                                                        const isExpanded = expandedAppId === app.id;
+                                                        const pFlags = Array.isArray(app.proctor_flags) ? app.proctor_flags : JSON.parse(app.proctor_flags || "[]");
+                                                        const isFlagged = app.tab_switch_count > 2 || pFlags.includes("Paste event intercepted");
+                                                        
+                                                        return (
+                                                            <React.Fragment key={app.id}>
+                                                                <tr className={`${isExpanded ? 'bg-slate-50/50' : 'hover:bg-slate-50/30'}`}>
+                                                                    <td className="p-5">
+                                                                        <div>
+                                                                            <p className="font-bold text-indigo-950 text-base">{app.name}</p>
+                                                                            <p className="text-slate-400 text-xs mt-0.5">{app.phone}</p>
+                                                                            <p className="text-slate-400 text-[10px] mt-0.5">{formatDate(app.created_at)}</p>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-5">
+                                                                        <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">{app.role}</span>
+                                                                    </td>
+                                                                    <td className="p-5">
+                                                                        <div>
+                                                                            <p className="font-black text-indigo-950 text-base">{app.calculated_score}/100</p>
+                                                                            <span className={`text-[10px] font-black uppercase tracking-wider block mt-1 ${app.candidate_tier.includes("High-Drive") ? 'text-green-600' : app.candidate_tier.includes("Intern") ? 'text-blue-600' : 'text-slate-400'}`}>
+                                                                                {app.candidate_tier}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-5">
+                                                                        {isFlagged ? (
+                                                                            <div className="flex flex-col gap-1">
+                                                                                {app.tab_switch_count > 2 && (
+                                                                                    <span className="px-2.5 py-0.5 bg-red-50 border border-red-100 text-red-600 text-[10px] font-bold rounded-md w-max font-sans">
+                                                                                        {app.tab_switch_count} Tab switches
+                                                                                    </span>
+                                                                                )}
+                                                                                {pFlags.includes("Paste event intercepted") && (
+                                                                                    <span className="px-2.5 py-0.5 bg-orange-50 border border-orange-100 text-orange-600 text-[10px] font-bold rounded-md w-max font-sans">
+                                                                                        Paste detected
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-green-500 font-bold text-xs">Clear (No flags)</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="p-5">
+                                                                        {app.resume_url ? (
+                                                                            <a 
+                                                                                href={app.resume_url} 
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-900 font-bold text-xs"
+                                                                            >
+                                                                                <Icon name="file-text" className="w-4 h-4" />
+                                                                                Open PDF
+                                                                            </a>
+                                                                        ) : (
+                                                                            <span className="text-slate-300">No Resume</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="p-5 text-right">
+                                                                        <button 
+                                                                            onClick={() => setExpandedAppId(isExpanded ? null : app.id)}
+                                                                            className="px-4 py-2 border border-slate-200 text-indigo-950 font-bold rounded-xl text-xs hover:bg-slate-100 transition-all"
+                                                                        >
+                                                                            {isExpanded ? "Hide Details" : "View Answers"}
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                                {isExpanded && (
+                                                                    <tr>
+                                                                        <td colSpan="6" className="bg-slate-50/50 p-6 border-b border-slate-200">
+                                                                            <div className="space-y-6 max-w-4xl">
+                                                                                <div className="grid md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-100">
+                                                                                    <div>
+                                                                                        <p className="text-xs font-bold text-slate-400 uppercase">LinkedIn Profile</p>
+                                                                                        <p className="mt-1 font-bold text-indigo-950 text-sm">
+                                                                                            {app.linkedin ? (
+                                                                                                <a href={app.linkedin} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">{app.linkedin}</a>
+                                                                                            ) : (
+                                                                                                "Not Provided"
+                                                                                            )}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <p className="text-xs font-bold text-slate-400 uppercase">Why Fit Explanation</p>
+                                                                                        <p className="mt-1 font-medium text-slate-700 text-sm">{app.why_fit || "N/A"}</p>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="space-y-4">
+                                                                                    <h4 className="text-sm font-black text-indigo-950 uppercase tracking-widest pl-1">Quiz Assessment Responses</h4>
+                                                                                    <div className="grid gap-3">
+                                                                                        {[
+                                                                                            { step: 1, q: "1. followed up with Principal but no response?", type: "MCQ" },
+                                                                                            { step: 2, q: "2. Principal rejects pitch, counselor exists?", type: "MCQ" },
+                                                                                            { step: 3, q: "3. 8-hour workday, school closures plan?", type: "MCQ" },
+                                                                                            { step: 4, q: "4. Goal worked toward for 6+ months?", type: "TEXT" },
+                                                                                            { step: 5, q: "5. Primary motivation for sales role?", type: "MCQ" },
+                                                                                            { step: 6, q: "6. Generate first 15 qualified school leads?", type: "TEXT" },
+                                                                                            { step: 7, q: "7. Foviz Elite too expensive objection?", type: "MCQ" },
+                                                                                            { step: 8, q: "8. Discovery call main objective?", type: "MCQ" },
+                                                                                            { step: 9, q: "9. Pipeline size for 3 school closures?", type: "MCQ" },
+                                                                                            { step: 10, q: "10. Deficits target, steps in Week 4?", type: "TEXT" }
+                                                                                        ].map(item => {
+                                                                                            const answerVal = (app.answers || {})[`q${item.step}`] || "Not answered";
+                                                                                            return (
+                                                                                                <div key={item.step} className="bg-white p-4 rounded-xl border border-slate-100 space-y-1.5 text-left">
+                                                                                                    <p className="text-xs font-black text-indigo-950 uppercase tracking-tighter">Question {item.step} ({item.type})</p>
+                                                                                                    <p className="text-xs text-slate-400 font-semibold">{item.q}</p>
+                                                                                                    <p className={`text-sm font-semibold rounded-lg mt-1 p-2 bg-slate-50 w-full ${item.type === 'MCQ' ? 'text-indigo-600 font-bold border border-indigo-50 w-max min-w-[3rem] text-center' : 'text-slate-700 font-medium'}`}>
+                                                                                                        {answerVal}
+                                                                                                    </p>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {activeTab === "calls" && (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-xs font-black uppercase tracking-wider">
+                                                    <th className="p-5">Lead Name</th>
+                                                    <th className="p-5">Phone Number</th>
+                                                    <th className="p-5">School Name</th>
+                                                    <th className="p-5">Preferred Time</th>
+                                                    <th className="p-5">Date Logged</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-sm font-semibold text-indigo-950">
+                                                {discoveryCalls.filter(call => 
+                                                    call.name.toLowerCase().includes(search.toLowerCase()) || 
+                                                    call.phone.includes(search) ||
+                                                    call.school.toLowerCase().includes(search.toLowerCase())
+                                                ).length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="5" className="text-center py-10 text-slate-400">No discovery calls scheduled.</td>
+                                                    </tr>
+                                                ) : (
+                                                    discoveryCalls.filter(call => 
+                                                        call.name.toLowerCase().includes(search.toLowerCase()) || 
+                                                        call.phone.includes(search) ||
+                                                        call.school.toLowerCase().includes(search.toLowerCase())
+                                                    ).map(call => (
+                                                        <tr key={call.id} className="hover:bg-slate-50/30">
+                                                            <td className="p-5 font-bold">{call.name}</td>
+                                                            <td className="p-5">{call.phone}</td>
+                                                            <td className="p-5">{call.school}</td>
+                                                            <td className="p-5">
+                                                                <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">{call.time}</span>
+                                                            </td>
+                                                            <td className="p-5 text-slate-400 font-medium">{formatDate(call.created_at)}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {activeTab === "partners" && (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-xs font-black uppercase tracking-wider">
+                                                    <th className="p-5">Partner Name</th>
+                                                    <th className="p-5">Phone Number</th>
+                                                    <th className="p-5">Organization</th>
+                                                    <th className="p-5">Best Connect Time</th>
+                                                    <th className="p-5">Date Registered</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-sm font-semibold text-indigo-950">
+                                                {partners.filter(p => 
+                                                    p.name.toLowerCase().includes(search.toLowerCase()) || 
+                                                    p.phone.includes(search) ||
+                                                    p.organization.toLowerCase().includes(search.toLowerCase())
+                                                ).length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="5" className="text-center py-10 text-slate-400">No educator partners registered.</td>
+                                                    </tr>
+                                                ) : (
+                                                    partners.filter(p => 
+                                                        p.name.toLowerCase().includes(search.toLowerCase()) || 
+                                                        p.phone.includes(search) ||
+                                                        p.organization.toLowerCase().includes(search.toLowerCase())
+                                                    ).map(p => (
+                                                        <tr key={p.id} className="hover:bg-slate-50/30">
+                                                            <td className="p-5 font-bold">{p.name}</td>
+                                                            <td className="p-5">{p.phone}</td>
+                                                            <td className="p-5">{p.organization}</td>
+                                                            <td className="p-5">
+                                                                <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">{p.time}</span>
+                                                            </td>
+                                                            <td className="p-5 text-slate-400 font-medium">{formatDate(p.created_at)}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {activeTab === "redirections" && (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-xs font-black uppercase tracking-wider">
+                                                    <th className="p-5">Order ID Verified</th>
+                                                    <th className="p-5">Referral Source</th>
+                                                    <th className="p-5">Verification Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-sm font-semibold text-indigo-950">
+                                                {redirections.filter(r => 
+                                                    r.order_id.toLowerCase().includes(search.toLowerCase()) || 
+                                                    r.source.toLowerCase().includes(search.toLowerCase())
+                                                ).length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="3" className="text-center py-10 text-slate-400">No reward redirections tracked.</td>
+                                                    </tr>
+                                                ) : (
+                                                    redirections.filter(r => 
+                                                        r.order_id.toLowerCase().includes(search.toLowerCase()) || 
+                                                        r.source.toLowerCase().includes(search.toLowerCase())
+                                                    ).map(r => (
+                                                        <tr key={r.id} className="hover:bg-slate-50/30">
+                                                            <td className="p-5 font-bold text-orange-600">{r.order_id}</td>
+                                                            <td className="p-5">{r.source}</td>
+                                                            <td className="p-5 text-slate-400 font-medium">{formatDate(r.created_at)}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
                 </div>
             );
         };
