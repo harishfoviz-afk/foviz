@@ -68,21 +68,30 @@
         const supabaseUrl = localStorage.getItem('FOV_SUPABASE_URL') || 'YOUR_SUPABASE_URL';
         const supabaseKey = localStorage.getItem('FOV_SUPABASE_ANON_KEY') || 'YOUR_SUPABASE_ANON_KEY';
         
-        let supabase = null;
+        let supabaseClient = null;
         window.supabaseInitError = null;
-        try {
+        const initializeSupabase = () => {
             if (supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
-                if (!window.supabase) {
-                    throw new Error("window.supabase is undefined. The Supabase CDN script failed to load. Please check your network connection, DNS, or ad blocker.");
+                if (window.supabase) {
+                    try {
+                        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+                        window.supabaseInitError = null;
+                        return true;
+                    } catch (e) {
+                        console.error("Failed to initialize Supabase:", e);
+                        window.supabaseInitError = e.message || String(e);
+                    }
+                } else {
+                    window.supabaseInitError = "window.supabase is undefined. The Supabase client script failed to load. Please check your network connection, DNS, or ad blocker.";
                 }
-                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
             } else {
                 window.supabaseInitError = `Credentials are not configured correctly in file or storage. URL: ${supabaseUrl.substring(0, 15)}..., Key prefix: ${supabaseKey.substring(0, 15)}...`;
             }
-        } catch (e) {
-            console.error("Failed to initialize Supabase:", e);
-            window.supabaseInitError = e.message || String(e);
-        }
+            return false;
+        };
+
+        // Try initializing immediately
+        initializeSupabase();
 
         const Icon = ({ name, className = "w-6 h-6", ...props }) => {
             useEffect(() => {
@@ -181,6 +190,29 @@
         };
 
         const App = () => {
+            const [supabaseReady, setSupabaseReady] = useState(!!supabaseClient);
+
+            useEffect(() => {
+                if (!supabaseReady) {
+                    const check = () => {
+                        if (initializeSupabase()) {
+                            setSupabaseReady(true);
+                            return true;
+                        }
+                        return false;
+                    };
+                    
+                    if (!check()) {
+                        const interval = setInterval(() => {
+                            if (check()) {
+                                clearInterval(interval);
+                            }
+                        }, 50);
+                        setTimeout(() => clearInterval(interval), 5000);
+                    }
+                }
+            }, [supabaseReady]);
+
             const [isMenuOpen, setIsMenuOpen] = useState(false);
             const [showQuizModal, setShowQuizModal] = useState(false);
             const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
@@ -267,7 +299,7 @@
                 setIsSubmitting(true);
                 const formData = new FormData(e.target);
 
-                if (!supabase) {
+                if (!supabaseClient) {
                     alert("Supabase backend is not configured! Please configure Supabase credentials at the top of the file, or go to website/#admin to enter credentials.");
                     setIsSubmitting(false);
                     return;
@@ -294,7 +326,7 @@
                             return; // Stop submission here; proceed to assessment modal
                         }
                     } else if (formName === "discovery-call") {
-                        const { error } = await supabase.from('discovery_calls').insert([{
+                        const { error } = await supabaseClient.from('discovery_calls').insert([{
                             name: formData.get("name"),
                             phone: formData.get("phone"),
                             school: formData.get("school"),
@@ -303,7 +335,7 @@
                         if (error) throw error;
                         callback();
                     } else if (formName === "partner-registration") {
-                        const { error } = await supabase.from('partner_registrations').insert([{
+                        const { error } = await supabaseClient.from('partner_registrations').insert([{
                             name: formData.get("name"),
                             phone: formData.get("phone"),
                             organization: formData.get("organization"),
@@ -312,7 +344,7 @@
                         if (error) throw error;
                         callback();
                     } else if (formName === "elite-redirection") {
-                        const { error } = await supabase.from('elite_redirections').insert([{
+                        const { error } = await supabaseClient.from('elite_redirections').insert([{
                             order_id: formData.get("orderId"),
                             source: formData.get("source") || "Direct"
                         }]);
@@ -331,7 +363,7 @@
                 setIsSubmitting(true);
                 const scoreResult = calculateCandidateScore(answers, tabSwitchCount, pasteAttempted);
 
-                if (!supabase) {
+                if (!supabaseClient) {
                     alert("Supabase backend is not configured! Cannot submit your assessment data.");
                     setIsSubmitting(false);
                     return;
@@ -345,7 +377,7 @@
                         const fileExt = file.name.split('.').pop();
                         const filePath = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-                        const { data, error: uploadError } = await supabase.storage
+                        const { data, error: uploadError } = await supabaseClient.storage
                             .from('resumes')
                             .upload(filePath, file, {
                                 cacheControl: '3600',
@@ -354,14 +386,14 @@
 
                         if (uploadError) throw new Error("Resume upload failed: " + uploadError.message);
 
-                        const { data: urlData } = supabase.storage
+                        const { data: urlData } = supabaseClient.storage
                             .from('resumes')
                             .getPublicUrl(filePath);
 
                         resumeUrl = urlData.publicUrl;
                     }
 
-                    const { error: dbError } = await supabase.from('career_applications').insert([{
+                    const { error: dbError } = await supabaseClient.from('career_applications').insert([{
                         name: careerPayload.name,
                         phone: careerPayload.phone,
                         role: careerPayload.role,
@@ -474,7 +506,7 @@
             if (currentHash === '#admin') {
                 return (
                     <AdminDashboard 
-                        supabase={supabase} 
+                        supabase={supabaseClient} 
                         supabaseUrl={supabaseUrl} 
                         supabaseKey={supabaseKey} 
                     />
