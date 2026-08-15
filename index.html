@@ -377,20 +377,60 @@
                         const fileExt = file.name.split('.').pop();
                         const filePath = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-                        const { data, error: uploadError } = await supabaseClient.storage
-                            .from('resumes')
-                            .upload(filePath, file, {
-                                cacheControl: '3600',
-                                upsert: false
-                            });
+                        let uploadError = null;
+                        try {
+                            const { data, error } = await supabaseClient.storage
+                                .from('resumes')
+                                .upload(filePath, file, {
+                                    cacheControl: '3600',
+                                    upsert: false
+                                });
+                            if (error) {
+                                uploadError = error;
+                            } else {
+                                const { data: urlData } = supabaseClient.storage
+                                    .from('resumes')
+                                    .getPublicUrl(filePath);
+                                resumeUrl = urlData.publicUrl;
+                            }
+                        } catch (e) {
+                            uploadError = e;
+                        }
 
-                        if (uploadError) throw new Error("Resume upload failed: " + uploadError.message);
+                        if (uploadError && uploadError.message && uploadError.message.includes('Bucket not found')) {
+                            // Try to create the bucket (if the client-side key has permissions)
+                            try {
+                                const { error: createError } = await supabaseClient.storage.createBucket('resumes', {
+                                    public: true,
+                                    fileSizeLimit: 5242880 // 5MB limit
+                                });
+                                if (!createError) {
+                                    // Retry upload
+                                    const { data: retryData, error: retryError } = await supabaseClient.storage
+                                        .from('resumes')
+                                        .upload(filePath, file, {
+                                            cacheControl: '3600',
+                                            upsert: false
+                                        });
+                                    if (!retryError) {
+                                        const { data: retryUrlData } = supabaseClient.storage
+                                            .from('resumes')
+                                            .getPublicUrl(filePath);
+                                        resumeUrl = retryUrlData.publicUrl;
+                                        uploadError = null;
+                                    } else {
+                                        uploadError = retryError;
+                                    }
+                                }
+                            } catch (createErr) {
+                                // Ignore creation error and throw original error
+                            }
+                        }
 
-                        const { data: urlData } = supabaseClient.storage
-                            .from('resumes')
-                            .getPublicUrl(filePath);
-
-                        resumeUrl = urlData.publicUrl;
+                        if (uploadError) {
+                            throw new Error("Resume upload failed: " + (uploadError.message || uploadError) + 
+                                ". Please log into your Supabase dashboard and create a public storage bucket named 'resumes'.");
+                        }
                     }
 
                     const { error: dbError } = await supabaseClient.from('career_applications').insert([{
