@@ -68,6 +68,140 @@
         const supabaseUrl = localStorage.getItem('FOV_SUPABASE_URL') || 'YOUR_SUPABASE_URL';
         const supabaseKey = localStorage.getItem('FOV_SUPABASE_ANON_KEY') || 'YOUR_SUPABASE_ANON_KEY';
         
+        const questionsMetadata = {
+            1: {
+                section: "Section 1: Resilience & Patience",
+                desc: "Dealing with persistent outreach and follow-ups.",
+                type: "mcq",
+                question: "1. You have followed up three times with a school Principal regarding the Apt Skola board suitability analysis but haven't received any response. What is your next step?",
+                options: {
+                    A: 'Visit the school in person during public hours, introduce yourself to the receptionist/coordinator, and request a 5-minute meeting or identify the best time to reach the Principal.',
+                    B: 'Continue to call the Principal\'s mobile number multiple times a day until they answer.',
+                    C: 'Send a formal email asking if they are uninterested so you can remove them from your list.',
+                    D: 'Mark the lead as dead and immediately stop all outreach efforts.'
+                }
+            },
+            2: {
+                section: "Section 1: Resilience & Patience",
+                desc: "Handling objections and client rejections.",
+                type: "mcq",
+                question: "2. A school Principal rejects your pitch, stating they already have a career counselor and do not need Foviz. How do you handle this?",
+                options: {
+                    A: 'Politely acknowledge their current solution, ask what gaps they still face, and offer to share a sample of our unique 5D diagnostic report for comparison.',
+                    B: 'Argue that their current counselor lacks scientific 5D depth and they are doing a disservice to students.',
+                    C: 'Offer to discount the Elite package by 50% immediately to win them over.',
+                    D: 'Accept the rejection immediately and exit the call.'
+                }
+            },
+            3: {
+                section: "Section 2: Hard Work vs. Smart Work",
+                desc: "Time management and sales productivity.",
+                type: "mcq",
+                question: "3. You have an 8-hour workday. How would you plan your time to maximize school closures for Apt Skola?",
+                options: {
+                    A: 'Spend the entire day making cold calls to a list of schools found on Google.',
+                    B: 'Research and pre-qualify 5 high-potential schools, schedule 2 in-person visits, and spend the remaining time following up on warm leads.',
+                    C: 'Spend 6 hours building a highly customized presentation slide deck and 2 hours on administrative tasks.',
+                    D: 'Wait at your desk for inbound leads or referrals to come through the website.'
+                }
+            },
+            4: {
+                section: "Section 2: Hard Work vs. Smart Work",
+                desc: "Productivity, planning, and long-term goal setting.",
+                type: "text",
+                question: "4. Describe a goal you worked toward for 6+ months without immediate reward. What kept you driven daily? (Min 30 words)"
+            },
+            5: {
+                section: "Section 3: Aspirations & Drive",
+                desc: "Inner motivation and career objectives.",
+                type: "mcq",
+                question: "5. What is your primary motivation for choosing a target-driven sales and business development role?",
+                options: {
+                    A: 'The opportunity to control my earnings through uncapped performance commissions and fast-track my career growth.',
+                    B: 'Having a steady job with predictable hours and comfortable routine tasks.',
+                    C: 'Traveling to different schools and networking without the pressure of hard sales targets.',
+                    D: 'Helping students find their career path, with commission as a secondary benefit.'
+                }
+            },
+            6: {
+                section: "Section 3: Aspirations & Drive",
+                desc: "Bootstrapping sales and generating pipeline with zero budget.",
+                type: "text",
+                question: "6. With zero ad budget, how would you generate your first 15 qualified school leads? (Min 30 words)"
+            },
+            7: {
+                section: "Section 4: B2B Sales Aptitude",
+                desc: "Handling value and pricing objections.",
+                type: "mcq",
+                question: "7. A Principal says the ₹2,499 Foviz Elite package is too expensive for their students. How do you respond?",
+                options: {
+                    A: 'Highlight that ₹2,499 is a one-time investment in a 15-year career roadmap that prevents costly educational mistakes, and offer bulk school pricing options.',
+                    B: 'Apologize for the high price and ask if they can recommend any wealthier students.',
+                    C: 'Immediately suggest the ₹499 Starter package instead, to make a quick sale.',
+                    D: 'Tell them that quality career guidance cannot be cheap and walk away if they can\'t afford it.'
+                }
+            },
+            8: {
+                section: "Section 4: B2B Sales Aptitude",
+                desc: "Executing discovery calls with school administrators.",
+                type: "mcq",
+                question: "8. During a 15-minute discovery call with a school Principal, what should be your main objective?",
+                options: {
+                    A: 'Pitch every single feature of the 36-page Foviz Elite report.',
+                    B: 'Understand the school\'s specific challenges regarding student career stream selection and parent satisfaction.',
+                    C: 'Negotiate pricing, payment splits, and contract terms.',
+                    D: 'Share your own achievements and background in sales.'
+                }
+            },
+            9: {
+                section: "Section 4: B2B Sales Aptitude",
+                desc: "Estimating conversion funnels in B2B transactions.",
+                type: "mcq",
+                question: "9. If your target is to close 3 school-wide Apt Skola sessions this month, what size pipeline is required?",
+                options: {
+                    A: '3 schools, since you plan to pitch only to interested schools.',
+                    B: '30-45 qualified school leads, assuming a realistic B2B conversion rate of 7-10%.',
+                    C: '10 schools, assuming a standard 30% closing rate.',
+                    D: '100+ unverified email addresses scraped from the web.'
+                }
+            },
+            10: {
+                section: "Section 4: B2B Sales Aptitude",
+                desc: "Managing sales recovery and target deficits.",
+                type: "text",
+                question: "10. If you fall behind target by Week 3, what exact steps will you take in Week 4? (Min 30 words)"
+            },
+            11: {
+                section: "Section 5: Personal Details & Location",
+                desc: "Candidate location and demographic info.",
+                type: "text",
+                question: "11. Current Location"
+            },
+            12: {
+                section: "Section 5: Personal Details & Location",
+                desc: "Candidate location and demographic info.",
+                type: "mcq",
+                question: "12. Are you willing to remain based in this location for the foreseeable future?",
+                options: {
+                    A: 'Yes',
+                    B: 'No',
+                    C: 'Open to relocation (Specify: _______)'
+                }
+            },
+            13: {
+                section: "Section 6: Family Details",
+                desc: "Candidate background details.",
+                type: "text",
+                question: "13. Number of Siblings"
+            },
+            14: {
+                section: "Section 6: Family Details",
+                desc: "Candidate background details.",
+                type: "text",
+                question: "14. Parents' Occupations"
+            }
+        };
+
         let supabaseClient = null;
         window.supabaseInitError = null;
         const initializeSupabase = () => {
@@ -314,7 +448,7 @@
                             phone: formData.get("phone"),
                             role: currentRole,
                             linkedin: formData.get("linkedin") || "",
-                            whyFit: formData.get("whyFit"),
+                            instituteName: formData.get("instituteName"),
                             resumeFile: file
                         };
 
@@ -438,7 +572,7 @@
                         phone: careerPayload.phone,
                         role: careerPayload.role,
                         linkedin: careerPayload.linkedin,
-                        why_fit: careerPayload.whyFit,
+                        institute_name: careerPayload.instituteName,
                         resume_url: resumeUrl,
                         calculated_score: scoreResult.finalScore,
                         candidate_tier: scoreResult.tier,
@@ -454,7 +588,11 @@
                             q7: answers.q7 || "",
                             q8: answers.q8 || "",
                             q9: answers.q9 || "",
-                            q10: answers.q10 || ""
+                            q10: answers.q10 || "",
+                            q11: answers.q11 || "",
+                            q12: answers.q12 || "",
+                            q13: answers.q13 || "",
+                            q14: answers.q14 || ""
                         }
                     }]);
 
@@ -753,6 +891,8 @@
                                     
                                     <input type="text" name="linkedin" placeholder="LinkedIn Profile / Portfolio URL" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" />
                                     
+                                    <input type="text" name="instituteName" placeholder="Institute Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required />
+                                    
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block pl-1 text-left">Attach Resume (PDF / Word)</label>
                                         <input 
@@ -763,8 +903,6 @@
                                             required 
                                         />
                                     </div>
-                                    
-                                    <textarea name="whyFit" placeholder="Why are you a good fit for this role?" rows="4" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium" required></textarea>
                                     
                                     <button 
                                         type="submit" 
@@ -813,7 +951,7 @@
                                         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
                                             <h4 className="font-bold text-indigo-950 text-lg">Test Rules & Guidelines:</h4>
                                             <ul className="list-disc pl-5 text-sm text-slate-600 space-y-2">
-                                                <li>This test consists of 10 questions. You will complete them one-by-one.</li>
+                                                <li>This test consists of 14 questions. You will complete them one-by-one.</li>
                                                 <li>Selecting an option in multiple-choice questions will automatically transition you to the next question.</li>
                                                 <li><strong>Proctoring:</strong> Leaving this window or switching tabs will be tracked. If you leave this window more than 2 times, your score will be heavily penalized.</li>
                                                 <li><strong>Anti-Paste:</strong> Copying and pasting is disabled. You must type out all open text answers manually.</li>
@@ -827,9 +965,7 @@
                                             Start Assessment
                                         </button>
                                     </div>
-                                )}
-
-                                {assessmentStep >= 1 && assessmentStep <= 10 && (() => {
+                                )}                                {assessmentStep >= 1 && assessmentStep <= 14 && (() => {
                                     const handleMcqSelect = (questionId, optionKey) => {
                                         setAssessmentAnswers(prev => ({ ...prev, [questionId]: optionKey }));
                                         setTimeout(() => {
@@ -837,111 +973,30 @@
                                         }, 250);
                                     };
 
-                                    // Define questions
-                                    const questionsData = {
-                                        1: {
-                                            section: "Section 1: Resilience & Patience",
-                                            desc: "Dealing with persistent outreach and follow-ups.",
-                                            type: "mcq",
-                                            question: "1. You have followed up three times with a school Principal regarding the Apt Skola board suitability analysis but haven't received any response. What is your next step?",
-                                            options: [
-                                                { key: 'A', text: 'Visit the school in person during public hours, introduce yourself to the receptionist/coordinator, and request a 5-minute meeting or identify the best time to reach the Principal.' },
-                                                { key: 'B', text: 'Continue to call the Principal\'s mobile number multiple times a day until they answer.' },
-                                                { key: 'C', text: 'Send a formal email asking if they are uninterested so you can remove them from your list.' },
-                                                { key: 'D', text: 'Mark the lead as dead and immediately stop all outreach efforts.' }
-                                            ]
-                                        },
-                                        2: {
-                                            section: "Section 1: Resilience & Patience",
-                                            desc: "Handling objections and client rejections.",
-                                            type: "mcq",
-                                            question: "2. A school Principal rejects your pitch, stating they already have a career counselor and do not need Foviz. How do you handle this?",
-                                            options: [
-                                                { key: 'A', text: 'Politely acknowledge their current solution, ask what gaps they still face, and offer to share a sample of our unique 5D diagnostic report for comparison.' },
-                                                { key: 'B', text: 'Argue that their current counselor lacks scientific 5D depth and they are doing a disservice to students.' },
-                                                { key: 'C', text: 'Offer to discount the Elite package by 50% immediately to win them over.' },
-                                                { key: 'D', text: 'Accept the rejection immediately and exit the call.' }
-                                            ]
-                                        },
-                                        3: {
-                                            section: "Section 2: Hard Work vs. Smart Work",
-                                            desc: "Time management and sales productivity.",
-                                            type: "mcq",
-                                            question: "3. You have an 8-hour workday. How would you plan your time to maximize school closures for Apt Skola?",
-                                            options: [
-                                                { key: 'A', text: 'Spend the entire day making cold calls to a list of schools found on Google.' },
-                                                { key: 'B', text: 'Research and pre-qualify 5 high-potential schools, schedule 2 in-person visits, and spend the remaining time following up on warm leads.' },
-                                                { key: 'C', text: 'Spend 6 hours building a highly customized presentation slide deck and 2 hours on administrative tasks.' },
-                                                { key: 'D', text: 'Wait at your desk for inbound leads or referrals to come through the website.' }
-                                            ]
-                                        },
-                                        4: {
-                                            section: "Section 2: Hard Work vs. Smart Work",
-                                            desc: "Productivity, planning, and long-term goal setting.",
-                                            type: "text",
-                                            question: "4. Describe a goal you worked toward for 6+ months without immediate reward. What kept you driven daily? (Min 30 words)"
-                                        },
-                                        5: {
-                                            section: "Section 3: Aspirations & Drive",
-                                            desc: "Inner motivation and career objectives.",
-                                            type: "mcq",
-                                            question: "5. What is your primary motivation for choosing a target-driven sales and business development role?",
-                                            options: [
-                                                { key: 'A', text: 'The opportunity to control my earnings through uncapped performance commissions and fast-track my career growth.' },
-                                                { key: 'B', text: 'Having a steady job with predictable hours and comfortable routine tasks.' },
-                                                { key: 'C', text: 'Traveling to different schools and networking without the pressure of hard sales targets.' },
-                                                { key: 'D', text: 'Helping students find their career path, with commission as a secondary benefit.' }
-                                            ]
-                                        },
-                                        6: {
-                                            section: "Section 3: Aspirations & Drive",
-                                            desc: "Bootstrapping sales and generating pipeline with zero budget.",
-                                            type: "text",
-                                            question: "6. With zero ad budget, how would you generate your first 15 qualified school leads? (Min 30 words)"
-                                        },
-                                        7: {
-                                            section: "Section 4: B2B Sales Aptitude",
-                                            desc: "Handling value and pricing objections.",
-                                            type: "mcq",
-                                            question: "7. A Principal says the ₹2,499 Foviz Elite package is too expensive for their students. How do you respond?",
-                                            options: [
-                                                { key: 'A', text: 'Highlight that ₹2,499 is a one-time investment in a 15-year career roadmap that prevents costly educational mistakes, and offer custom bulk school pricing options.' },
-                                                { key: 'B', text: 'Apologize for the high price and ask if they can recommend any wealthier students.' },
-                                                { key: 'C', text: 'Immediately suggest the ₹499 Starter package instead, to make a quick sale.' },
-                                                { key: 'D', text: 'Tell them that quality career guidance cannot be cheap and walk away if they can\'t afford it.' }
-                                            ]
-                                        },
-                                        8: {
-                                            section: "Section 4: B2B Sales Aptitude",
-                                            desc: "Executing discovery calls with school administrators.",
-                                            type: "mcq",
-                                            question: "8. During a 15-minute discovery call with a school Principal, what should be your main objective?",
-                                            options: [
-                                                { key: 'A', text: 'Pitch every single feature of the 36-page Foviz Elite report.' },
-                                                { key: 'B', text: 'Understand the school\'s specific challenges regarding student career stream selection and parent satisfaction.' },
-                                                { key: 'C', text: 'Negotiate pricing, payment splits, and contract terms.' },
-                                                { key: 'D', text: 'Share your own achievements and background in sales.' }
-                                            ]
-                                        },
-                                        9: {
-                                            section: "Section 4: B2B Sales Aptitude",
-                                            desc: "Estimating conversion funnels in B2B transactions.",
-                                            type: "mcq",
-                                            question: "9. If your target is to close 3 school-wide Apt Skola sessions this month, what size pipeline is required?",
-                                            options: [
-                                                { key: 'A', text: '3 schools, since you plan to pitch only to interested schools.' },
-                                                { key: 'B', text: '30-45 qualified school leads, assuming a realistic B2B conversion rate of 7-10%.' },
-                                                { key: 'C', text: '10 schools, assuming a standard 30% closing rate.' },
-                                                { key: 'D', text: '100+ unverified email addresses scraped from the web.' }
-                                            ]
-                                        },
-                                        10: {
-                                            section: "Section 4: B2B Sales Aptitude",
-                                            desc: "Managing sales recovery and target deficits.",
-                                            type: "text",
-                                            question: "10. If you fall behind target by Week 3, what exact steps will you take in Week 4? (Min 30 words)"
+                                    // Define questions dynamically from questionsMetadata
+                                    const questionsData = {};
+                                    Object.keys(questionsMetadata).forEach(stepKey => {
+                                        const qMeta = questionsMetadata[stepKey];
+                                        if (qMeta.type === "mcq") {
+                                            questionsData[stepKey] = {
+                                                section: qMeta.section,
+                                                desc: qMeta.desc,
+                                                type: "mcq",
+                                                question: qMeta.question,
+                                                options: Object.keys(qMeta.options).map(oKey => ({
+                                                    key: oKey,
+                                                    text: qMeta.options[oKey]
+                                                }))
+                                            };
+                                        } else {
+                                            questionsData[stepKey] = {
+                                                section: qMeta.section,
+                                                desc: qMeta.desc,
+                                                type: "text",
+                                                question: qMeta.question
+                                            };
                                         }
-                                    };
+                                    });
 
                                     const q = questionsData[assessmentStep];
                                     const currentAns = assessmentAnswers[`q${assessmentStep}`] || "";
@@ -950,27 +1005,35 @@
                                         <div className="space-y-6">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${(assessmentStep / 10) * 100}%` }}></div>
+                                                    <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${(assessmentStep / 14) * 100}%` }}></div>
                                                 </div>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question {assessmentStep}/10</span>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question {assessmentStep}/14</span>
                                             </div>
-
-
 
                                             {q.type === "mcq" ? (
                                                 <div className="space-y-4 text-left">
                                                     <label className="text-base font-bold text-indigo-950 block">{q.question}</label>
                                                     <div className="grid gap-3">
                                                         {q.options.map(opt => (
-                                                            <button 
-                                                                key={opt.key}
-                                                                type="button"
-                                                                onClick={() => handleMcqSelect(`q${assessmentStep}`, opt.key)}
-                                                                className={`text-left p-4 rounded-xl border-2 font-semibold transition-all flex items-start gap-3 ${currentAns === opt.key ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950' : 'border-slate-100 hover:border-indigo-600/30 text-slate-600'}`}
-                                                            >
-                                                                <span className="font-bold uppercase bg-slate-200 text-slate-700 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-sm mt-0.5">{opt.key}</span>
-                                                                <span>{opt.text}</span>
-                                                            </button>
+                                                            <div key={opt.key} className="space-y-2">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (opt.key === 'C' && assessmentStep === 12) {
+                                                                            const spec = prompt("Please specify where you are open to relocating to:");
+                                                                            if (spec !== null) {
+                                                                                handleMcqSelect(`q${assessmentStep}`, `C (Specify: ${spec || "Anywhere"})`);
+                                                                            }
+                                                                        } else {
+                                                                            handleMcqSelect(`q${assessmentStep}`, opt.key);
+                                                                        }
+                                                                    }}
+                                                                    className={`w-full text-left p-4 rounded-xl border-2 font-semibold transition-all flex items-start gap-3 ${currentAns.startsWith(opt.key) ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950' : 'border-slate-100 hover:border-indigo-600/30 text-slate-600'}`}
+                                                                >
+                                                                    <span className="font-bold uppercase bg-slate-200 text-slate-700 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-sm mt-0.5">{opt.key}</span>
+                                                                    <span>{opt.text}</span>
+                                                                </button>
+                                                            </div>
                                                         ))}
                                                     </div>
                                                 </div>
@@ -989,9 +1052,11 @@
                                                         placeholder="Write your response here manually..."
                                                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 font-medium animate-none"
                                                     ></textarea>
-                                                    <div className="text-right text-xs font-semibold text-slate-400">
-                                                        Word count: {(currentAns.trim().split(/\s+/).filter(w => w.length > 0).length)} (Need 30+)
-                                                    </div>
+                                                    {[4, 6, 10].includes(assessmentStep) && (
+                                                        <div className="text-right text-xs font-semibold text-slate-400">
+                                                            Word count: {(currentAns.trim().split(/\s+/).filter(w => w.length > 0).length)} (Need 30+)
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
 
@@ -1011,7 +1076,7 @@
                                                                 alert("Please answer the question before proceeding.");
                                                                 return;
                                                             }
-                                                            if (assessmentStep === 10) {
+                                                            if (assessmentStep === 14) {
                                                                 submitAssessment(assessmentAnswers);
                                                             } else {
                                                                 setAssessmentStep(prev => prev + 1);
@@ -1019,7 +1084,7 @@
                                                         }}
                                                         className="px-8 py-3 bg-indigo-950 text-white font-bold rounded-xl text-sm hover:bg-indigo-900 transition-all ml-auto animate-none"
                                                     >
-                                                        {assessmentStep === 10 ? "Submit Application" : "Continue"}
+                                                        {assessmentStep === 14 ? "Submit Application" : "Continue"}
                                                     </button>
                                                 )}
                                             </div>
@@ -1702,7 +1767,7 @@
                         Phone: app.phone,
                         Role: app.role,
                         LinkedIn: app.linkedin || "",
-                        WhyFit: app.why_fit,
+                        InstituteName: app.institute_name || app.why_fit || "",
                         Score: app.calculated_score,
                         Tier: app.candidate_tier,
                         TabSwitches: app.tab_switch_count,
@@ -1780,7 +1845,8 @@
             const filteredApplications = applications.filter(app => {
                 const matchesSearch = app.name.toLowerCase().includes(search.toLowerCase()) || 
                                      app.phone.includes(search) || 
-                                     (app.linkedin && app.linkedin.toLowerCase().includes(search.toLowerCase()));
+                                     (app.linkedin && app.linkedin.toLowerCase().includes(search.toLowerCase())) ||
+                                     (app.institute_name && app.institute_name.toLowerCase().includes(search.toLowerCase()));
                 
                 const matchesRole = roleFilter === "all" || app.role === roleFilter;
                 
@@ -2133,33 +2199,34 @@
                                                                                         </p>
                                                                                     </div>
                                                                                     <div>
-                                                                                        <p className="text-xs font-bold text-slate-400 uppercase">Why Fit Explanation</p>
-                                                                                        <p className="mt-1 font-medium text-slate-700 text-sm">{app.why_fit || "N/A"}</p>
+                                                                                        <p className="text-xs font-bold text-slate-400 uppercase">Institute Name</p>
+                                                                                        <p className="mt-1 font-medium text-slate-700 text-sm">{app.institute_name || app.why_fit || "N/A"}</p>
                                                                                     </div>
                                                                                 </div>
 
                                                                                 <div className="space-y-4">
                                                                                     <h4 className="text-sm font-black text-indigo-950 uppercase tracking-widest pl-1">Quiz Assessment Responses</h4>
                                                                                     <div className="grid gap-3">
-                                                                                        {[
-                                                                                            { step: 1, q: "1. followed up with Principal but no response?", type: "MCQ" },
-                                                                                            { step: 2, q: "2. Principal rejects pitch, counselor exists?", type: "MCQ" },
-                                                                                            { step: 3, q: "3. 8-hour workday, school closures plan?", type: "MCQ" },
-                                                                                            { step: 4, q: "4. Goal worked toward for 6+ months?", type: "TEXT" },
-                                                                                            { step: 5, q: "5. Primary motivation for sales role?", type: "MCQ" },
-                                                                                            { step: 6, q: "6. Generate first 15 qualified school leads?", type: "TEXT" },
-                                                                                            { step: 7, q: "7. Foviz Elite too expensive objection?", type: "MCQ" },
-                                                                                            { step: 8, q: "8. Discovery call main objective?", type: "MCQ" },
-                                                                                            { step: 9, q: "9. Pipeline size for 3 school closures?", type: "MCQ" },
-                                                                                            { step: 10, q: "10. Deficits target, steps in Week 4?", type: "TEXT" }
-                                                                                        ].map(item => {
-                                                                                            const answerVal = (app.answers || {})[`q${item.step}`] || "Not answered";
+                                                                                        {Object.keys(questionsMetadata).map(stepStr => {
+                                                                                            const step = parseInt(stepStr);
+                                                                                            const qMeta = questionsMetadata[step];
+                                                                                            const answerVal = (app.answers || {})[`q${step}`] || "Not answered";
+                                                                                            
+                                                                                            let displayAnswer = answerVal;
+                                                                                            if (qMeta.type === "mcq") {
+                                                                                                // Match the starting letter key (e.g. "C (Specify: ...)" -> key is "C")
+                                                                                                const key = answerVal.charAt(0);
+                                                                                                if (qMeta.options[key]) {
+                                                                                                    displayAnswer = `${answerVal} - ${qMeta.options[key]}`;
+                                                                                                }
+                                                                                            }
+                                                                                            
                                                                                             return (
-                                                                                                <div key={item.step} className="bg-white p-4 rounded-xl border border-slate-100 space-y-1.5 text-left">
-                                                                                                    <p className="text-xs font-black text-indigo-950 uppercase tracking-tighter">Question {item.step} ({item.type})</p>
-                                                                                                    <p className="text-xs text-slate-400 font-semibold">{item.q}</p>
-                                                                                                    <p className={`text-sm font-semibold rounded-lg mt-1 p-2 bg-slate-50 w-full ${item.type === 'MCQ' ? 'text-indigo-600 font-bold border border-indigo-50 w-max min-w-[3rem] text-center' : 'text-slate-700 font-medium'}`}>
-                                                                                                        {answerVal}
+                                                                                                <div key={step} className="bg-white p-4 rounded-xl border border-slate-100 space-y-1.5 text-left">
+                                                                                                    <p className="text-xs font-black text-indigo-950 uppercase tracking-tighter">Question {step} ({qMeta.type.toUpperCase()})</p>
+                                                                                                    <p className="text-xs text-slate-500 font-bold leading-normal">{qMeta.question}</p>
+                                                                                                    <p className="text-sm font-medium rounded-lg mt-1 p-3 bg-slate-50 w-full text-slate-700 leading-normal border border-slate-100">
+                                                                                                        {displayAnswer}
                                                                                                     </p>
                                                                                                 </div>
                                                                                             );
